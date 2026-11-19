@@ -26,11 +26,189 @@ namespace PD {
     int GetChannelVolumeLevel(uint ch, out float l); int GetChannelVolumeLevelScalar(uint ch, out float l);
     int SetMute([MarshalAs(UnmanagedType.Bool)] bool m, ref Guid c); int GetMute([MarshalAs(UnmanagedType.Bool)] out bool m);
   }
+  // Full vtables (PreserveSig: the int is the HRESULT), so devices can be listed and named, not only the default one.
   [ComImport, Guid("D666063F-1587-4E43-81F1-B948E807363F"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-  interface IMMDevice { int Activate(ref Guid id, int ctx, IntPtr p, [MarshalAs(UnmanagedType.IUnknown)] out object o); }
+  interface IMMDevice {
+    [PreserveSig] int Activate(ref Guid id, int ctx, IntPtr p, [MarshalAs(UnmanagedType.IUnknown)] out object o);
+    [PreserveSig] int OpenPropertyStore(int access, out IPropertyStore store);
+    [PreserveSig] int GetId([MarshalAs(UnmanagedType.LPWStr)] out string id);
+    [PreserveSig] int GetState(out int state);
+  }
+  [ComImport, Guid("0BD7A1BE-7A1A-44DB-8397-CC5392387B5E"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IMMDeviceCollection {
+    [PreserveSig] int GetCount(out uint n);
+    [PreserveSig] int Item(uint i, out IMMDevice d);
+  }
   [ComImport, Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-  interface IMMDeviceEnumerator { int EnumAudioEndpoints(int f, int s, out IntPtr d); int GetDefaultAudioEndpoint(int f, int r, out IMMDevice d); }
+  interface IMMDeviceEnumerator {
+    [PreserveSig] int EnumAudioEndpoints(int flow, int mask, out IMMDeviceCollection c);
+    [PreserveSig] int GetDefaultAudioEndpoint(int flow, int role, out IMMDevice d);
+    [PreserveSig] int GetDevice([MarshalAs(UnmanagedType.LPWStr)] string id, out IMMDevice d);
+  }
   [ComImport, Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")] class MMDeviceEnumeratorCom {}
+
+  [StructLayout(LayoutKind.Sequential)] struct PROPERTYKEY { public Guid fmtid; public int pid; }
+  [StructLayout(LayoutKind.Sequential)] struct PROPVARIANT { public ushort vt; public ushort r1, r2, r3; public IntPtr p; public IntPtr p2; }
+  [ComImport, Guid("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IPropertyStore {
+    [PreserveSig] int GetCount(out uint n);
+    [PreserveSig] int GetAt(uint i, out PROPERTYKEY k);
+    [PreserveSig] int GetValue(ref PROPERTYKEY k, out PROPVARIANT v);
+    [PreserveSig] int SetValue(ref PROPERTYKEY k, ref PROPVARIANT v);
+    [PreserveSig] int Commit();
+  }
+
+  // Per-app volume: the sessions of the Windows volume mixer.
+  [ComImport, Guid("77AA99A0-1BD6-484F-8BC7-2C654C9A9B6F"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IAudioSessionManager2 {
+    [PreserveSig] int GetAudioSessionControl(IntPtr guid, int flags, out IntPtr ctl);
+    [PreserveSig] int GetSimpleAudioVolume(IntPtr guid, int flags, out IntPtr vol);
+    [PreserveSig] int GetSessionEnumerator(out IAudioSessionEnumerator e);
+  }
+  [ComImport, Guid("E2F5BB11-0570-40CA-ACDD-3AA01277DEE8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IAudioSessionEnumerator {
+    [PreserveSig] int GetCount(out int n);
+    [PreserveSig] int GetSession(int i, out IAudioSessionControl2 s);
+  }
+  [ComImport, Guid("BFB7FF88-7239-4FC9-8FA2-07C950BE9C6D"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IAudioSessionControl2 {
+    [PreserveSig] int GetState(out int state);
+    [PreserveSig] int GetDisplayName([MarshalAs(UnmanagedType.LPWStr)] out string name);
+    [PreserveSig] int SetDisplayName([MarshalAs(UnmanagedType.LPWStr)] string name, ref Guid ctx);
+    [PreserveSig] int GetIconPath([MarshalAs(UnmanagedType.LPWStr)] out string path);
+    [PreserveSig] int SetIconPath([MarshalAs(UnmanagedType.LPWStr)] string path, ref Guid ctx);
+    [PreserveSig] int GetGroupingParam(out Guid g);
+    [PreserveSig] int SetGroupingParam(ref Guid g, ref Guid ctx);
+    [PreserveSig] int RegisterAudioSessionNotification(IntPtr n);
+    [PreserveSig] int UnregisterAudioSessionNotification(IntPtr n);
+    [PreserveSig] int GetSessionIdentifier([MarshalAs(UnmanagedType.LPWStr)] out string id);
+    [PreserveSig] int GetSessionInstanceIdentifier([MarshalAs(UnmanagedType.LPWStr)] out string id);
+    [PreserveSig] int GetProcessId(out uint pid);
+    [PreserveSig] int IsSystemSoundsSession();
+    [PreserveSig] int SetDuckingPreference([MarshalAs(UnmanagedType.Bool)] bool optOut);
+  }
+  [ComImport, Guid("87CE5498-68D6-44E5-9215-6DA47EF883D8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface ISimpleAudioVolume {
+    [PreserveSig] int SetMasterVolume(float level, ref Guid ctx);
+    [PreserveSig] int GetMasterVolume(out float level);
+    [PreserveSig] int SetMute([MarshalAs(UnmanagedType.Bool)] bool mute, ref Guid ctx);
+    [PreserveSig] int GetMute([MarshalAs(UnmanagedType.Bool)] out bool mute);
+  }
+
+  // Default device switch: the undocumented but long-stable IPolicyConfig (what the Sound control panel itself uses).
+  [ComImport, Guid("F8679F50-850A-41CF-9C72-430F290290C8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IPolicyConfig {
+    [PreserveSig] int GetMixFormat([MarshalAs(UnmanagedType.LPWStr)] string id, IntPtr f);
+    [PreserveSig] int GetDeviceFormat([MarshalAs(UnmanagedType.LPWStr)] string id, int def, IntPtr f);
+    [PreserveSig] int ResetDeviceFormat([MarshalAs(UnmanagedType.LPWStr)] string id);
+    [PreserveSig] int SetDeviceFormat([MarshalAs(UnmanagedType.LPWStr)] string id, IntPtr a, IntPtr b);
+    [PreserveSig] int GetProcessingPeriod([MarshalAs(UnmanagedType.LPWStr)] string id, int def, IntPtr a, IntPtr b);
+    [PreserveSig] int SetProcessingPeriod([MarshalAs(UnmanagedType.LPWStr)] string id, IntPtr a);
+    [PreserveSig] int GetShareMode([MarshalAs(UnmanagedType.LPWStr)] string id, IntPtr m);
+    [PreserveSig] int SetShareMode([MarshalAs(UnmanagedType.LPWStr)] string id, IntPtr m);
+    [PreserveSig] int GetPropertyValue([MarshalAs(UnmanagedType.LPWStr)] string id, IntPtr k, IntPtr v);
+    [PreserveSig] int SetPropertyValue([MarshalAs(UnmanagedType.LPWStr)] string id, IntPtr k, IntPtr v);
+    [PreserveSig] int SetDefaultEndpoint([MarshalAs(UnmanagedType.LPWStr)] string id, int role);
+    [PreserveSig] int SetEndpointVisibility([MarshalAs(UnmanagedType.LPWStr)] string id, int visible);
+  }
+  [ComImport, Guid("870AF99C-171D-4F9E-AF0D-E63DF40C2BC9")] class PolicyConfigClient {}
+
+  public static class Mixer {
+    [DllImport("ole32.dll")] static extern int PropVariantClear(ref PROPVARIANT pv);
+    static IMMDeviceEnumerator En() { return (IMMDeviceEnumerator)(new MMDeviceEnumeratorCom()); }
+
+    static string Name(IMMDevice d) {
+      IPropertyStore ps;
+      if (d.OpenPropertyStore(0, out ps) != 0 || ps == null) return "";
+      PROPERTYKEY k; k.fmtid = new Guid("A45C254E-DF1C-4EFD-8020-67D146A850E0"); k.pid = 14; // PKEY_Device_FriendlyName
+      PROPVARIANT v;
+      if (ps.GetValue(ref k, out v) != 0) return "";
+      try { return v.vt == 31 ? Marshal.PtrToStringUni(v.p) : ""; } finally { PropVariantClear(ref v); }
+    }
+
+    // "id|isDefault(0/1)|name" for every active device of a flow (0 playback, 1 recording)
+    public static string[] Devices(int flow) {
+      List<string> r = new List<string>();
+      IMMDeviceEnumerator e = En();
+      string def = "";
+      IMMDevice dd;
+      if (e.GetDefaultAudioEndpoint(flow, 1, out dd) == 0 && dd != null) dd.GetId(out def);
+      IMMDeviceCollection c;
+      Marshal.ThrowExceptionForHR(e.EnumAudioEndpoints(flow, 1 /* DEVICE_STATE_ACTIVE */, out c));
+      uint n; c.GetCount(out n);
+      for (uint i = 0; i < n; i++) {
+        IMMDevice d; if (c.Item(i, out d) != 0 || d == null) continue;
+        string id; if (d.GetId(out id) != 0 || id == null) continue;
+        r.Add(id + "|" + (id == def ? "1" : "0") + "|" + Name(d).Replace("|", "/"));
+      }
+      return r.ToArray();
+    }
+
+    // console, multimedia and communications: what the Sound panel's "Set Default" does
+    public static void SetDefault(string id) {
+      IPolicyConfig pc = (IPolicyConfig)(new PolicyConfigClient());
+      for (int role = 0; role < 3; role++) Marshal.ThrowExceptionForHR(pc.SetDefaultEndpoint(id, role));
+    }
+
+    static List<IAudioSessionControl2> Sessions() {
+      List<IAudioSessionControl2> all = new List<IAudioSessionControl2>();
+      IMMDeviceCollection c;
+      if (En().EnumAudioEndpoints(0, 1, out c) != 0 || c == null) return all;
+      uint n; c.GetCount(out n);
+      for (uint i = 0; i < n; i++) {
+        IMMDevice d; if (c.Item(i, out d) != 0 || d == null) continue;
+        Guid g = typeof(IAudioSessionManager2).GUID; object o;
+        if (d.Activate(ref g, 23, IntPtr.Zero, out o) != 0 || o == null) continue;
+        IAudioSessionEnumerator se;
+        if (((IAudioSessionManager2)o).GetSessionEnumerator(out se) != 0 || se == null) continue;
+        int k; se.GetCount(out k);
+        for (int j = 0; j < k; j++) { IAudioSessionControl2 s; if (se.GetSession(j, out s) == 0 && s != null) all.Add(s); }
+      }
+      return all;
+    }
+    static string ProcName(uint pid) {
+      if (pid == 0) return "";
+      try { return System.Diagnostics.Process.GetProcessById((int)pid).ProcessName; } catch { return ""; }
+    }
+
+    // "pid|state|level(0-100)|muted(0/1)|name" for every app session (system sounds left out)
+    public static string[] List() {
+      List<string> r = new List<string>();
+      foreach (IAudioSessionControl2 s in Sessions()) {
+        uint pid; s.GetProcessId(out pid);
+        if (s.IsSystemSoundsSession() == 0) continue; // S_OK = it IS the system sounds session
+        string name = ProcName(pid); if (name == "") continue;
+        int st; s.GetState(out st);
+        ISimpleAudioVolume v = (ISimpleAudioVolume)s; float l; bool m; v.GetMasterVolume(out l); v.GetMute(out m);
+        r.Add(pid + "|" + st + "|" + (int)Math.Round(l * 100) + "|" + (m ? "1" : "0") + "|" + name);
+      }
+      return r.ToArray();
+    }
+
+    // level/delta in 0-100 (-1000 = unchanged), mute: -1 unchanged, 0 unmute, 1 mute, 2 toggle (by the first session).
+    // Every session of the program changes (Chrome and Discord have several); returns the new List() rows of that program.
+    public static string[] Set(string app, int level, int delta, int mute) {
+      string want = app.ToLowerInvariant();
+      if (want.EndsWith(".exe")) want = want.Substring(0, want.Length - 4);
+      Guid ctx = Guid.Empty; int toggled = -1;
+      List<string> r = new List<string>();
+      foreach (IAudioSessionControl2 s in Sessions()) {
+        uint pid; s.GetProcessId(out pid);
+        string name = ProcName(pid);
+        if (name == "" || name.ToLowerInvariant() != want) continue;
+        ISimpleAudioVolume v = (ISimpleAudioVolume)s; float l; bool m; v.GetMasterVolume(out l); v.GetMute(out m);
+        if (level != -1000) l = Math.Max(0, Math.Min(100, level)) / 100f;
+        if (delta != -1000) l = Math.Max(0f, Math.Min(1f, l + delta / 100f));
+        if (level != -1000 || delta != -1000) v.SetMasterVolume(l, ref ctx);
+        if (mute == 2 && toggled == -1) toggled = m ? 0 : 1;
+        int mm = mute == 2 ? toggled : mute;
+        if (mm == 0 || mm == 1) { m = mm == 1; v.SetMute(m, ref ctx); }
+        int st; s.GetState(out st);
+        r.Add(pid + "|" + st + "|" + (int)Math.Round(l * 100) + "|" + (m ? "1" : "0") + "|" + name);
+      }
+      return r.ToArray();
+    }
+  }
 
   public static class Audio {
     // 0x80070490 (ELEMENT_NOT_FOUND) = no default playback device (a server, a CI runner, an unplugged headset)
@@ -110,6 +288,7 @@ namespace PD {
       return r.ToArray();
     }
     public static long Foreground() { return GetForegroundWindow().ToInt64(); }
+    public static uint ForegroundPid() { uint pid; IntPtr h = GetForegroundWindow(); if (h == IntPtr.Zero) return 0; GetWindowThreadProcessId(h, out pid); return pid; }
     public static bool Focus(long hwnd) {
       IntPtr h = new IntPtr(hwnd);
       if (IsIconic(h)) ShowWindow(h, 9);
@@ -305,6 +484,71 @@ function Cmd-SoundDuration($a) {
   $ms
 }
 
+# ---- gaming: programs, per-app volume, devices, CPU temperature ----
+function Cmd-ProcNames {
+  $seen = @{}
+  foreach ($p in [System.Diagnostics.Process]::GetProcesses()) { $seen[$p.ProcessName] = $true }
+  , @($seen.Keys)
+}
+function Cmd-ForegroundApp {
+  $pid0 = [PD.Win]::ForegroundPid()
+  if (-not $pid0) { return $null }
+  try { (Get-Process -Id ([int]$pid0) -ErrorAction Stop).ProcessName } catch { $null }
+}
+function Session-Rows($rows) {
+  $o = @()
+  foreach ($l in $rows) {
+    $p = $l.Split('|', 5)
+    $o += @{ pid = [int]$p[0]; active = ($p[1] -eq '1'); level = [int]$p[2]; muted = ($p[3] -eq '1'); app = [string]$p[4] }
+  }
+  , $o
+}
+function Cmd-AudioSessions { Session-Rows ([PD.Mixer]::List()) }
+function Cmd-AudioSessionSet($a) {
+  $level = if ($null -ne $a.level) { [int]$a.level } else { -1000 }
+  $delta = if ($null -ne $a.delta) { [int]$a.delta } else { -1000 }
+  $mute = if ($a.muted -eq 'toggle') { 2 } elseif ($null -eq $a.muted) { -1 } elseif ($a.muted) { 1 } else { 0 }
+  Session-Rows ([PD.Mixer]::Set([string]$a.app, $level, $delta, $mute))
+}
+function Cmd-AudioDevices($a) {
+  $flow = if ($a.flow -eq 'input') { 1 } else { 0 }
+  $o = @()
+  foreach ($l in [PD.Mixer]::Devices($flow)) {
+    $p = $l.Split('|', 3)
+    $o += @{ id = [string]$p[0]; isDefault = ($p[1] -eq '1'); name = [string]$p[2] }
+  }
+  , $o
+}
+function Cmd-AudioSetDefault($a) {
+  $id = [string]$a.id
+  if ($id -notmatch '^\{[0-9.]+\}\.\{[0-9a-fA-F-]+\}$') { throw 'not an audio device id' }
+  [PD.Mixer]::SetDefault($id)
+  $true
+}
+# CPU package temperature, read-only. LibreHardwareMonitor / OpenHardwareMonitor publish their sensors to WMI while they
+# run; MSAcpi_ThermalZoneTemperature (the motherboard's ACPI zone, needs admin on most PCs) is the fallback.
+function Cmd-CpuTemp {
+  foreach ($ns in @('root/LibreHardwareMonitor', 'root/OpenHardwareMonitor')) {
+    try {
+      $s = @(Get-CimInstance -Namespace $ns -ClassName Sensor -ErrorAction Stop | Where-Object { $_.SensorType -eq 'Temperature' -and $_.Identifier -match 'cpu' })
+      if ($s.Count) {
+        $pick = $s | Where-Object { $_.Name -match 'Package|Tctl|Tdie|Core \(Tctl|CPU Total|Core Average' } | Select-Object -First 1
+        if (-not $pick) { $pick = $s | Sort-Object -Property Value -Descending | Select-Object -First 1 }
+        return @{ celsius = [Math]::Round([double]$pick.Value, 1); source = $ns.Split('/')[1].ToLowerInvariant(); sensor = [string]$pick.Name }
+      }
+    } catch { }
+  }
+  try {
+    $z = @(Get-CimInstance -Namespace root/wmi -ClassName MSAcpi_ThermalZoneTemperature -ErrorAction Stop)
+    if ($z.Count) {
+      $k = ($z | Measure-Object -Property CurrentTemperature -Maximum).Maximum
+      $c = [Math]::Round($k / 10 - 273.15, 1)
+      if ($c -gt 0 -and $c -lt 130) { return @{ celsius = $c; source = 'acpi'; sensor = 'ACPI thermal zone' } }
+    }
+  } catch { }
+  @{ celsius = $null; source = 'none' }
+}
+
 function Win-Windows {
   $o = @()
   foreach ($l in [PD.Win]::List()) {
@@ -373,6 +617,13 @@ function Handle($req) {
     'window.focusnew' { return Cmd-WindowFocusNew $req }
     'window.foreground' { return [PD.Win]::Foreground() }
     'sound.duration' { return Cmd-SoundDuration $req }
+    'proc.names' { return Cmd-ProcNames }
+    'window.foregroundapp' { return Cmd-ForegroundApp }
+    'audio.sessions' { return Cmd-AudioSessions }
+    'audio.session.set' { return Cmd-AudioSessionSet $req }
+    'audio.devices' { return Cmd-AudioDevices $req }
+    'audio.default' { return Cmd-AudioSetDefault $req }
+    'temp.cpu' { return Cmd-CpuTemp }
     default { throw ('unknown command ' + $req.cmd) }
   }
 }

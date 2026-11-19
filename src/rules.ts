@@ -1,7 +1,13 @@
 import type { SessionTool } from "./ai/types";
-import type { Rule, RuleThen, RuleWhen } from "./automation";
+import { appKey, type Rule, type RuleThen, type RuleWhen } from "./automation";
 
 export const RULE_COOLDOWN_MS = 60_000;
+/**
+ * App rules follow what you do (start a game, alt-tab in and out): a 60 s rest would swallow the second alt-tab, so
+ * they rest only briefly; the poll interval already debounces them.
+ */
+export const APP_RULE_COOLDOWN_MS = 5_000;
+export const isAppRule = (w: RuleWhen) => w.kind === "app-running" || w.kind === "app-foreground";
 
 /** Everything a rule condition can look at. Feeders update it; the engine re-evaluates. */
 export interface RuleFacts {
@@ -15,6 +21,10 @@ export interface RuleFacts {
   push: Record<string, string | number | undefined>;
   hass: Record<string, string | undefined>;
   lastPress: number | undefined; // ms; undefined = never pressed since start
+  /** Running programs (appKey names); undefined until the first successful poll (an unknown state never fires or ends a rule). */
+  running: Set<string> | undefined;
+  /** The program of the foreground window (appKey), null = none/unknown desktop, undefined = not polled yet. */
+  foreground: string | null | undefined;
 }
 
 export interface RuleActions {
@@ -66,7 +76,7 @@ function compare(op: "=" | "!=" | ">" | "<", actual: string | number | undefined
  * When the condition ends, `revert` goes back to the page shown before, and a theme-mode override is dropped.
  */
 export class RuleEngine {
-  facts: RuleFacts = { aiInput: new Set(), aiPrompt: new Set(), mediaPlaying: undefined, cpu: undefined, quota: {}, push: {}, hass: {}, lastPress: undefined };
+  facts: RuleFacts = { aiInput: new Set(), aiPrompt: new Set(), mediaPlaying: undefined, cpu: undefined, quota: {}, push: {}, hass: {}, lastPress: undefined, running: undefined, foreground: undefined };
   private prev = new Map<string, boolean>();
   private lastFired = new Map<string, number>();
   private active = new Set<string>(); // rules whose effects (goto/theme) are currently applied
@@ -99,6 +109,8 @@ export class RuleEngine {
       case "push": return compare(w.op ?? "=", f.push[w.key], w.value);
       case "hass-state": return (f.hass[w.entityId] ?? "").toLowerCase() === w.state.toLowerCase();
       case "idle": return t - (f.lastPress ?? this.startedAt) >= w.minutes * 60_000;
+      case "app-running": return !!f.running?.has(appKey(w.app));
+      case "app-foreground": return !!f.foreground && f.foreground === appKey(w.app);
     }
   }
 
@@ -124,7 +136,12 @@ export class RuleEngine {
       this.prev.set(r.id, now);
       if (now && !was) {
         const last = this.lastFired.get(r.id);
-        if (last !== undefined && t - last < (this.o.cooldownMs ?? RULE_COOLDOWN_MS)) continue;
+        const rest = isAppRule(r.when) ? Math.min(APP_RULE_COOLDOWN_MS, this.o.cooldownMs ?? APP_RULE_COOLDOWN_MS) : this.o.cooldownMs ?? RULE_COOLDOWN_MS;
+        if (last !== undefined && t - last < rest) {
+          // an app rule that comes back while resting (alt-tab out and in) fires once the rest is over, if still true
+          if (isAppRule(r.when)) this.prev.set(r.id, false);
+          continue;
+        }
         this.lastFired.set(r.id, t);
         this.fire(r);
       } else if (!now && was && this.active.has(r.id)) this.end(r);
@@ -163,5 +180,16 @@ export class RuleEngine {
   setPush(key: string, v: string | number | undefined) { this.facts.push[key] = v; this.evaluate(); }
   setHass(entityId: string, state: string | undefined) { this.facts.hass[entityId] = state; this.evaluate(); }
   pressed() { this.facts.lastPress = this.now(); this.evaluate(); }
+  /** Feed a program poll: `running` names and the foreground program (either undefined when that part was not polled). */
+  setApps(running: Iterable<string> | undefined, foreground: string | null | undefined) {
+    if (running !== undefined) this.facts.running = new Set([...running].map(appKey));
+    if (foreground !== undefined) this.facts.foreground = foreground === null ? null : appKey(foreground);
+    this.evaluate();
+  }
+  /** Which program facts the enabled rules need (the poller asks only for those). */
+  appNeeds(): { running: boolean; foreground: boolean } {
+    const rs = this.o.rules().filter((r) => r.enabled);
+    return { running: rs.some((r) => r.when.kind === "app-running"), foreground: rs.some((r) => r.when.kind === "app-foreground") };
+  }
   tick() { this.evaluate(); }
 }

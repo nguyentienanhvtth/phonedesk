@@ -1,4 +1,5 @@
-import { buildCommand, buildVolumeCommand, parsePactlVolume } from "../actions";
+import { buildCommand, buildVolumeCommand, parsePactlVolume, xdotoolKey } from "../actions";
+import { linuxCpuTemp, parsePsNames } from "./unix-gaming";
 import { parsePlayerctl, type RawMedia } from "../media";
 
 const US = "\u001f"; // not imported from ../media: that module imports this one, and a const read during the cycle is still in its TDZ
@@ -55,6 +56,13 @@ export function createLinux(id: NodeJS.Platform = "linux", which: (n: string) =>
       return topProcessesFrom(parsePs(await runCapture(["ps", "-Ao", "pid,pcpu,rss,comm"], 5000)), sort, limit);
     },
     async lanName() { return undefined; },
+
+    async runningApps() { return parsePsNames(await runCapture(["ps", "-eo", "comm="], 5000)); },
+    async holdKeys(keys, down) {
+      if (!which("xdotool")) throw new Error(t("Holding keys needs xdotool"));
+      await runCapture(["xdotool", down ? "keydown" : "keyup", "--", xdotoolKey(keys)], 3000);
+    },
+    cpuTemp: () => linuxCpuTemp(),
 
     apps: null,
     soundCommand(path, volume) {

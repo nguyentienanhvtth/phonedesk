@@ -8,6 +8,7 @@ import { parsePs, topProcessesFrom } from "../processes";
 import { parseAfinfo } from "../sounds";
 import { t } from "../i18n";
 import { runCapture } from "./exec";
+import { parseLsappinfoName, parsePsNames } from "./unix-gaming";
 import type { Platform, SecretStore } from "./types";
 
 type Runner = (argv: string[], timeoutMs?: number) => Promise<string>;
@@ -147,6 +148,14 @@ export function createDarwin(): Platform {
     },
     async lanName() {
       try { return (await runCapture(["scutil", "--get", "LocalHostName"], 2000)).trim(); } catch { return undefined; }
+    },
+
+    // no permission prompt: ps and lsappinfo read what the Dock knows
+    async runningApps() { return parsePsNames(await runCapture(["ps", "-axco", "comm="], 5000)); },
+    async foregroundApp() {
+      const asn = (await runCapture(["lsappinfo", "front"], 2000)).trim();
+      if (!/^ASN:[0-9a-fx-]+:?$/i.test(asn)) return null;
+      return parseLsappinfoName(await runCapture(["lsappinfo", "info", "-only", "name", asn], 2000));
     },
 
     apps: null, // macOS apps are read from the .app bundles by icons.ts (Info.plist + sips)

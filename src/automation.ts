@@ -18,6 +18,16 @@ const SERVICE_RE = /^[a-z_]+\.[a-z0-9_]+$/;
 /** Keys for pushed values and webhook triggers: short, URL-safe. */
 export const PUSH_KEY_RE = /^[a-z0-9][a-z0-9_.-]{0,47}$/;
 const HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+/** A program as the OS lists it: "cs2", "cs2.exe", "Discord", "Google Chrome". */
+export const APP_NAME_RE = /^[\p{L}\p{N} ._()+&'-]{1,64}$/u;
+/** How program names are compared: case-insensitive, without a trailing ".exe" (Windows) or ".app" (macOS). */
+export const appKey = (name: string): string => name.trim().toLowerCase().replace(/\.(exe|app)$/, "");
+export function appName(v: unknown, where: string): string {
+  const name = s(v, where, 80).trim();
+  if (!APP_NAME_RE.test(name)) fail(`${where} must be a program name such as cs2.exe or Discord (letters, digits, space . _ - ( ) + & ')`);
+  return name;
+}
+const SOUND_REF_RE = /^snd:[a-f0-9]{16}$/;
 
 // ---------- weather ----------
 
@@ -75,7 +85,11 @@ export type MacroStep =
   | { kind: "volume"; command: "up" | "down" | "mute" }
   | { kind: "hass"; service: string; entityId?: string; data?: Record<string, unknown> }
   | { kind: "item"; pageId: string; itemId: string } // run another button's action (no nested macros beyond depth 2)
-  | { kind: "notify"; text: string };
+  | { kind: "notify"; text: string }
+  /** Play a library clip (like a sound button). */
+  | { kind: "sound"; sound: string; on?: "mac" | "phone" | "both"; volume?: number }
+  /** Switch the phone that runs the macro to another screen. */
+  | { kind: "page"; pageId: string };
 
 export const MACRO_MAX_STEPS = 20;
 
@@ -104,6 +118,20 @@ export function macroSteps(v: any, where: string): MacroStep[] {
       }
       case "item": return { kind: "item", pageId: s(st.pageId, `${w}.pageId`, 80), itemId: s(st.itemId, `${w}.itemId`, 80) };
       case "notify": return { kind: "notify", text: s(st.text, `${w}.text`, 200) };
+      case "sound": {
+        const sound = s(st.sound, `${w}.sound`, 40);
+        if (!sound) fail(`${w}.sound: no clip chosen yet (pick one from the Sounds tab)`);
+        if (!SOUND_REF_RE.test(sound)) fail(`${w}.sound must be an uploaded sound (snd:<id>)`);
+        const out: any = { kind: "sound", sound };
+        if (st.on !== undefined) out.on = oneOf(st.on, `${w}.on`, ["mac", "phone", "both"] as const);
+        if (st.volume !== undefined) out.volume = n(st.volume, `${w}.volume`, 0, 100);
+        return out;
+      }
+      case "page": {
+        const pageId = s(st.pageId, `${w}.pageId`, 80);
+        if (!pageId) fail(`${w}.pageId: choose a screen`);
+        return { kind: "page", pageId };
+      }
       default: return fail(`${w}.kind "${st.kind}" is not supported`);
     }
   });
@@ -124,7 +152,11 @@ export type RuleWhen =
   | { kind: "time-between"; from: string; to: string; days?: number[] } // HH:MM local, days 0=Sunday
   | { kind: "push"; key: string; op?: "=" | "!=" | ">" | "<"; value?: string | number } // a pushed value / webhook
   | { kind: "hass-state"; entityId: string; state: string }
-  | { kind: "idle"; minutes: number };                              // no press on any phone for N minutes
+  | { kind: "idle"; minutes: number }                               // no press on any phone for N minutes
+  /** A program is running (any window or none), e.g. cs2.exe. Polled every few seconds while a rule needs it. */
+  | { kind: "app-running"; app: string }
+  /** A program owns the foreground window (you are in it). */
+  | { kind: "app-foreground"; app: string };
 
 export type RuleThen =
   | { kind: "goto-page"; pageId: string; countdown?: number }       // seconds of visible countdown, 0 = immediately
@@ -178,6 +210,7 @@ function ruleWhen(v: any, where: string): RuleWhen {
       return { kind: "hass-state", entityId: e, state: s(v.state, `${where}.state`, 60) };
     }
     case "idle": return { kind: "idle", minutes: n(v.minutes, `${where}.minutes`, 1, 1440) };
+    case "app-running": case "app-foreground": return { kind: v.kind, app: appName(v.app, `${where}.app`) };
     default: return fail(`${where}.kind "${v.kind}" is not supported`);
   }
 }

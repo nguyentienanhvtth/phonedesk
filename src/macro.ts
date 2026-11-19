@@ -10,6 +10,8 @@ export interface MacroCtx {
   /** The action of a button, or undefined when the page/item is gone or has none. */
   item(pageId: string, itemId: string): Action | undefined;
   notify(text: string): void;
+  /** Switches the phone(s) to a screen (throws when it does not exist). */
+  gotoPage?(pageId: string): void;
   sleep(ms: number, signal?: AbortSignal): Promise<void>;
   /** Aborted when the agent stops. */
   signal?: AbortSignal;
@@ -32,6 +34,7 @@ function toAction(st: MacroStep): Action | null {
     case "media": return { type: "media", command: st.command };
     case "volume": return { type: "volume", command: st.command };
     case "hass": return { type: "hass", service: st.service, ...(st.entityId ? { entityId: st.entityId } : {}), ...(st.data ? { data: st.data } : {}) };
+    case "sound": return { type: "sound", sound: st.sound, ...(st.on ? { on: st.on } : {}), ...(st.volume !== undefined ? { volume: st.volume } : {}), mode: "overlap" };
     default: return null;
   }
 }
@@ -43,6 +46,10 @@ export async function runMacro(steps: MacroStep[], ctx: MacroCtx, depth = 0): Pr
     try {
       if (st.kind === "wait") await ctx.sleep(st.ms, ctx.signal);
       else if (st.kind === "notify") ctx.notify(st.text);
+      else if (st.kind === "page") {
+        if (!ctx.gotoPage) throw new Error(tr("switching screens is not available here"));
+        ctx.gotoPage(st.pageId);
+      }
       else if (st.kind === "item") {
         const a = ctx.item(st.pageId, st.itemId);
         if (!a) throw new Error(tr("button {id} not found", { id: `${st.pageId}/${st.itemId}` }));

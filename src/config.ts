@@ -2,12 +2,13 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { copyFile, mkdir, readFile, writeFile, rename, unlink } from "node:fs/promises";
 import { ICON_ALIASES } from "../web/shared/icons";
-import { macroSteps, pushOptions, validateRules, weatherOptions, type MacroStep, type PushOptions, type Rule, type WeatherOptions } from "./automation";
+import { appName, macroSteps, pushOptions, validateRules, weatherOptions, type MacroStep, type PushOptions, type Rule, type WeatherOptions } from "./automation";
 export type { MacroStep, PushOptions, Rule, WeatherOptions } from "./automation";
 
 export type Action =
   | { type: "open"; target: string }
-  | { type: "hotkey"; keys: string }
+  /** hold: key down while the phone button is held, key up on release (push-to-talk); a plain tap without it. */
+  | { type: "hotkey"; keys: string; hold?: boolean }
   | { type: "type"; text: string }
   | { type: "shell"; command: string }
   | { type: "media"; command: "playpause" | "next" | "previous" }
@@ -16,6 +17,10 @@ export type Action =
   | { type: "set-volume"; level: number; device?: VolumeDevice }
   /** Default microphone: mute, unmute or toggle. */
   | { type: "mic"; command: MicCommand }
+  /** One program's volume in the Windows mixer (all of its audio sessions): set a level, step it, or (un)mute it. */
+  | { type: "app-volume"; app: string; command: AppVolumeCommand; level?: number; step?: number }
+  /** Make a playback (or recording) device the default; with several, each press moves to the next one in the list. */
+  | { type: "output-device"; devices: string[]; flow?: "output" | "input" }
   | { type: "page"; page: string }
   /** Soundboard: play an uploaded clip (~/.phonedesk/sounds/<id>.<ext>) on the Mac (afplay), the phone, or both. */
   | { type: "sound"; sound: string; on?: SoundTarget; volume?: number; mode?: SoundMode }
@@ -43,13 +48,16 @@ export interface EntityOptions {
 export type SoundTarget = "mac" | "phone" | "both";
 export type VolumeDevice = "output" | "mic";
 export type MicCommand = "mute" | "unmute" | "toggle";
+export type AppVolumeCommand = "set" | "up" | "down" | "mute" | "unmute" | "toggle-mute";
+export const APP_VOLUME_COMMANDS: AppVolumeCommand[] = ["set", "up", "down", "mute", "unmute", "toggle-mute"];
+export const OUTPUT_DEVICES_MAX = 8;
 export const MIC_COMMANDS: MicCommand[] = ["mute", "unmute", "toggle"];
 export type SoundMode = "overlap" | "restart" | "toggle";
 export const SOUND_ID_RE = /^snd:[a-f0-9]{16}$/;
 
 /** nowplaying = current track + transport + volume (agent sends {type:"media"}); network = rx/tx rates; gpu = NVIDIA GPU stats via nvidia-smi. */
 /** volume = slider for system volume; mic = slider for mic input level (Windows). */
-export type WidgetKind = "clock" | "cpu" | "memory" | "uptime" | "load" | "network" | "nowplaying" | "quota" | "sessions" | "entity" | "weather" | "value" | "notifications" | "gpu" | "volume" | "mic";
+export type WidgetKind = "clock" | "cpu" | "memory" | "uptime" | "load" | "network" | "nowplaying" | "quota" | "sessions" | "entity" | "weather" | "value" | "notifications" | "gpu" | "volume" | "mic" | "cputemp";
 
 /** AI coding tools PhoneDesk reads quotas/sessions from. A "quota" widget shows one provider (item.provider). */
 export type AiProvider = "claude" | "codex" | "antigravity" | "opencode" | "grok";
@@ -204,8 +212,8 @@ export const HOME = process.env.PHONEDESK_HOME ?? join(homedir(), ".phonedesk");
 const LAYOUT_FILE = join(HOME, "layout.json");
 const DEVICES_FILE = join(HOME, "devices.json");
 
-export const ACTION_TYPES = ["open", "hotkey", "type", "shell", "media", "volume", "set-volume", "mic", "page", "sound", "sound-stop", "hass", "macro"] as const;
-export const WIDGET_KINDS: WidgetKind[] = ["clock", "cpu", "memory", "uptime", "load", "network", "nowplaying", "quota", "sessions", "entity", "weather", "value", "notifications", "gpu", "volume", "mic"];
+export const ACTION_TYPES = ["open", "hotkey", "type", "shell", "media", "volume", "set-volume", "mic", "app-volume", "output-device", "page", "sound", "sound-stop", "hass", "macro"] as const;
+export const WIDGET_KINDS: WidgetKind[] = ["clock", "cpu", "memory", "uptime", "load", "network", "nowplaying", "quota", "sessions", "entity", "weather", "value", "notifications", "gpu", "volume", "mic", "cputemp"];
 
 export function defaultLayout(): Layout {
   return {
@@ -566,7 +574,11 @@ function validateAction(a: any, where: string): Action {
   if (!a || typeof a !== "object") throw new Error(`${where}.action must be an object`);
   switch (a.type) {
     case "open": return { type: "open", target: str(a.target, `${where}.action.target`) };
-    case "hotkey": return { type: "hotkey", keys: str(a.keys, `${where}.action.keys`) };
+    case "hotkey": {
+      const keys = str(a.keys, `${where}.action.keys`);
+      if (a.hold !== undefined && typeof a.hold !== "boolean") throw new Error(`${where}.action.hold must be true or false`);
+      return { type: "hotkey", keys, ...(a.hold === true ? { hold: true } : {}) };
+    }
     case "type": return { type: "type", text: str(a.text, `${where}.action.text`) };
     case "shell": return { type: "shell", command: str(a.command, `${where}.action.command`) };
     case "page": return { type: "page", page: str(a.page, `${where}.action.page`) };
@@ -613,6 +625,28 @@ function validateAction(a: any, where: string): Action {
     case "mic":
       if (!MIC_COMMANDS.includes(a.command)) throw new Error(`${where}.action.command must be mute, unmute or toggle`);
       return { type: "mic", command: a.command };
+    case "app-volume": {
+      const app = appName(a.app, `${where}.action.app`);
+      if (!APP_VOLUME_COMMANDS.includes(a.command)) throw new Error(`${where}.action.command must be one of ${APP_VOLUME_COMMANDS.join(", ")}`);
+      const out: Action = { type: "app-volume", app, command: a.command };
+      if (a.command === "set") {
+        if (typeof a.level !== "number" || !Number.isInteger(a.level) || a.level < 0 || a.level > 100) throw new Error(`${where}.action.level must be an integer 0-100`);
+        (out as any).level = a.level;
+      }
+      if ((a.command === "up" || a.command === "down") && a.step !== undefined) (out as any).step = num(a.step, `${where}.action.step`, 1, 50);
+      return out;
+    }
+    case "output-device": {
+      if (!Array.isArray(a.devices) || a.devices.length === 0) throw new Error(`${where}.action.devices: choose at least one device`);
+      if (a.devices.length > OUTPUT_DEVICES_MAX) throw new Error(`${where}.action.devices: at most ${OUTPUT_DEVICES_MAX} devices`);
+      const devices = a.devices.map((d: unknown, i: number) => {
+        const v = str(d, `${where}.action.devices[${i}]`).trim();
+        if (!v || v.length > 200 || /[\u0000-\u001f]/.test(v)) throw new Error(`${where}.action.devices[${i}] must be a device name (1-200 characters)`);
+        return v;
+      });
+      if (a.flow !== undefined && a.flow !== "output" && a.flow !== "input") throw new Error(`${where}.action.flow must be output or input`);
+      return { type: "output-device", devices, ...(a.flow === "input" ? { flow: "input" as const } : {}) };
+    }
     default:
       throw new Error(`${where}.action.type "${a.type}" is not supported`);
   }
@@ -690,6 +724,13 @@ export function validateLayout(raw: any): Layout {
     const placed = placeItems(items, columns, rows, `page "${id}"`);
     return { id, name: str(p.name ?? id, `${where}.name`), columns, rows: placed.rows, items: placed.items };
   });
+  // macro "page" steps must name a screen of this layout
+  for (const p of pages) for (const it of p.items) {
+    if (it.kind !== "button" || it.action?.type !== "macro") continue;
+    for (const [i, st] of it.action.steps.entries()) {
+      if (st.kind === "page" && !pageIds.has(st.pageId)) throw new Error(`page "${p.id}", button "${it.label || it.id}": macro step ${i + 1} goes to screen "${st.pageId}", which does not exist`);
+    }
+  }
   const theme = validateTheme(raw.theme);
   const rules = validateRules(raw.rules, new Set(pages.map((p) => p.id)));
   return { version: 1, ...(theme ? { theme } : {}), pages, ...(rules ? { rules } : {}) };

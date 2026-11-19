@@ -253,7 +253,7 @@ export function soundRefs(layout: unknown): { sound: string; label: string }[] {
     if (!v || typeof v !== "object") return;
     const o = v as Record<string, unknown>;
     const here = typeof o.label === "string" && o.label.trim() ? o.label.trim() : typeof o.name === "string" && o.name.trim() ? o.name.trim() : label;
-    if (o.type === "sound" && typeof o.sound === "string") out.push({ sound: `snd:${bareId(o.sound)}`, label: here });
+    if ((o.type === "sound" || o.kind === "sound") && typeof o.sound === "string") out.push({ sound: `snd:${bareId(o.sound)}`, label: here });
     for (const x of Object.values(o)) if (x && typeof x === "object") walk(x, here);
   };
   walk(layout, "");

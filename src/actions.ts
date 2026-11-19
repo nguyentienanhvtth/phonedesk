@@ -163,7 +163,7 @@ const XDO_KEYS: Record<string, string> = {
   mediastop: "XF86AudioStop",
 };
 
-function xdotoolKey(keys: string): string {
+export function xdotoolKey(keys: string): string {
   const { mods, key } = parseHotkey(keys);
   return [...new Set(mods.map((m) => XDO_MODS[m]))].concat(XDO_KEYS[key] ?? key).join("+");
 }
@@ -176,7 +176,7 @@ export function buildCommand(a: Action, platform: NodeJS.Platform): string[] {
   if (a.type === "sound" || a.type === "sound-stop") throw new Error("sound actions are handled by the sound player");
   if (a.type === "hass") throw new Error("Home Assistant actions are handled by the HA client");
   if (a.type === "macro") throw new Error("macros are run step by step by the macro runner");
-  if (a.type === "set-volume" || a.type === "mic") throw new Error("volume and microphone levels are set by the agent, not a command");
+  if (a.type === "set-volume" || a.type === "mic" || a.type === "app-volume" || a.type === "output-device") throw new Error("volume, microphone and audio device changes are made by the agent, not a command");
 
   const isWin = platform === "win32";
   const isMac = platform === "darwin";

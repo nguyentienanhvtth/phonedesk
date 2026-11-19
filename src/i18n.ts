@@ -14,6 +14,16 @@ const vi: Record<string, string> = {
   // generic / macros
   "cancelled": "đã hủy",
   "button {id} not found": "không thấy nút {id}",
+  "screen {id} not found": "không thấy màn hình {id}",
+  "switching screens is not available here": "không chuyển màn hình được ở đây",
+  "Per-app volume is only available on Windows": "Âm lượng riêng từng app chỉ có trên Windows",
+  "{app} has no sound in the volume mixer right now: start it (and play something) first": "{app} hiện chưa có âm thanh trong bộ trộn âm lượng: hãy mở app (và phát gì đó) trước",
+  "Switching audio devices is only available on Windows": "Đổi thiết bị âm thanh chỉ có trên Windows",
+  "“{name}” is not connected": "“{name}” chưa được kết nối",
+  "none of the chosen audio devices is connected": "không thiết bị âm thanh nào đã chọn đang được kết nối",
+  "Holding keys is not supported on this computer": "Máy này không hỗ trợ giữ phím",
+  "Holding keys needs xdotool": "Giữ phím cần cài xdotool",
+  "this button does not hold keys": "nút này không giữ phím",
   "macros nested deeper than {n} levels": "macro lồng quá {n} cấp",
   "step {n} ({kind}): {msg}": "bước {n} ({kind}): {msg}",
   // permissions / questions

@@ -29,6 +29,9 @@ import { NEAR_END_MS, NEAR_END_S, LastMediaStore, MediaTracker, openMediaApp as 
 import type { Stats } from "./stats";
 import type { VolumeChange, VolumeState } from "./actions";
 import type { MicChange, MicState } from "./platform";
+import type { AppVolumeChange, AudioDevice, AudioSession, CpuTempReading } from "./platform/types";
+import { HoldTracker, appVolumeChange, pickDevice } from "./gaming";
+import { readGpu as realReadGpu, type GpuReading } from "./gpu";
 import { AiHub, QUOTA_SOURCE, realAiSources, type AiProviderId, type AiSources } from "./ai";
 import { agyPath } from "./ai/antigravity";
 import { ToolStates, type ToolState } from "./ai/states";
@@ -77,6 +80,16 @@ export interface Deps {
   /** User-initiated: launch/activate a player without playing. */
   openMediaApp: (app: MediaApp) => Promise<void>;
   topProcesses: (sort: ProcessSort, limit: number) => Promise<ProcessInfo[]>;
+  // ----- gaming (undefined = not on this OS) -----
+  runningApps?: () => Promise<string[]>;
+  foregroundApp?: () => Promise<string | null>;
+  audioSessions?: () => Promise<AudioSession[]>;
+  setAppVolume?: (app: string, change: AppVolumeChange) => Promise<AudioSession[]>;
+  audioDevices?: (flow: "output" | "input") => Promise<AudioDevice[]>;
+  setDefaultAudioDevice?: (id: string) => Promise<void>;
+  holdKeys?: (keys: string, down: boolean) => Promise<void>;
+  cpuTemp?: () => Promise<CpuTempReading>;
+  readGpu?: () => Promise<GpuReading>;
 }
 
 export interface StartOptions {
@@ -130,6 +143,12 @@ export interface StartOptions {
   doctorProbes?: Probes;
   /** Opens a settings link for POST /api/doctor/open (tests record it; default the platform opener). */
   openExternal?: (url: string) => Promise<void>;
+  /** App rules: how often running / foreground programs are polled while a rule needs them (default 3000 ms). */
+  appPollMs?: number;
+  /** GPU / CPU temperature widgets: sensor poll interval while phones are connected (default 5000 ms). */
+  sensorPollMs?: number;
+  /** Longest a phone button may hold keys down (default 2 minutes). */
+  holdMaxMs?: number;
   /** How long GET /api/doctor waits for the first Claude quota read (default 5000). */
   doctorWaitMs?: number;
   idleSeconds?: () => Promise<number | null>;
@@ -168,6 +187,15 @@ export async function startServer(opts: StartOptions = {}) {
     resumeMedia: opts.deps?.resumeMedia ?? realResumeMedia,
     openMediaApp: opts.deps?.openMediaApp ?? realOpenMediaApp,
     topProcesses: opts.deps?.topProcesses ?? realTopProcesses,
+    runningApps: opts.deps?.runningApps ?? platform.runningApps?.bind(platform),
+    foregroundApp: opts.deps?.foregroundApp ?? platform.foregroundApp?.bind(platform),
+    audioSessions: opts.deps?.audioSessions ?? platform.audioSessions?.bind(platform),
+    setAppVolume: opts.deps?.setAppVolume ?? platform.setAppVolume?.bind(platform),
+    audioDevices: opts.deps?.audioDevices ?? platform.audioDevices?.bind(platform),
+    setDefaultAudioDevice: opts.deps?.setDefaultAudioDevice ?? platform.setDefaultAudioDevice?.bind(platform),
+    holdKeys: opts.deps?.holdKeys ?? platform.holdKeys?.bind(platform),
+    cpuTemp: opts.deps?.cpuTemp ?? platform.cpuTemp?.bind(platform),
+    readGpu: opts.deps?.readGpu ?? realReadGpu,
   };
   const toolStates = new ToolStates();
   const baseSources = opts.aiSources ?? realAiSources(toolStates);
@@ -279,6 +307,12 @@ export async function startServer(opts: StartOptions = {}) {
         const ctx: MacroCtx = {
           exec: (a, d) => execute(a, d, ws),
           item: findAction,
+          // the phone that ran the macro switches; a rule-run macro has no phone, so every phone does
+          gotoPage: (pageId) => {
+            if (!layout.pages.some((p) => p.id === pageId)) throw new Error(t("screen {id} not found", { id: pageId }));
+            const msg = { type: "goto", pageId, countdown: 0, reason: "", revert: false };
+            if (ws) send(ws, msg); else broadcast(msg);
+          },
           notify: (text) => void addNote({ title: text, source: "macro" }),
           sleep: abortableSleep,
           signal: stopCtl.signal,
@@ -307,9 +341,33 @@ export async function startServer(opts: StartOptions = {}) {
         refreshSoon("volume");
         return;
       }
+      case "app-volume": {
+        if (!deps.setAppVolume) throw new Error(t("Per-app volume is only available on Windows"));
+        const after = await deps.setAppVolume(action.app, appVolumeChange(action));
+        if (!after.length) throw new Error(t("{app} has no sound in the volume mixer right now: start it (and play something) first", { app: action.app }));
+        return;
+      }
+      case "output-device": {
+        if (!deps.audioDevices || !deps.setDefaultAudioDevice) throw new Error(t("Switching audio devices is only available on Windows"));
+        const flow = action.flow ?? "output";
+        const target = pickDevice(await deps.audioDevices(flow), action.devices);
+        if (!target.isDefault) await deps.setDefaultAudioDevice(target.id);
+        if (flow === "output") refreshSoon("volume");
+        return;
+      }
       default: return deps.runAction(action);
     }
   }
+
+  // ----- held keys (push-to-talk): key down on press, key up on release / disconnect / layout change / timeout -----
+  const holds = new HoldTracker<ServerWebSocket<WsData>>({
+    hold: async (keys, down) => {
+      if (!deps.holdKeys) throw new Error(t("Holding keys is not supported on this computer"));
+      await deps.holdKeys(keys, down);
+    },
+    maxMs: opts.holdMaxMs,
+    onError: (e) => console.error("releasing held keys:", e),
+  });
   const rules: RuleEngine = new RuleEngine({
     rules: () => layout.rules ?? [],
     actions: {
@@ -327,6 +385,27 @@ export async function startServer(opts: StartOptions = {}) {
   const rulesTimer = setInterval(() => rules.tick(), opts.rulesTickMs ?? 30_000);
   (rulesTimer as any).unref?.();
   const unsubHass = hass.onState?.((id, st) => rules.setHass(id, st?.state));
+
+  // ----- app rules: poll running / foreground programs only while an enabled rule needs them -----
+  let appPolling = false;
+  async function pollApps() {
+    if (appPolling || stopped) return;
+    const need = rules.appNeeds();
+    if (!need.running && !need.foreground) return;
+    appPolling = true;
+    try {
+      // a failed read keeps the last facts: an unreadable moment must not count as "the game closed"
+      const [running, fg] = await Promise.all([
+        need.running && deps.runningApps ? deps.runningApps().catch(() => undefined) : Promise.resolve(undefined),
+        need.foreground && deps.foregroundApp ? deps.foregroundApp().catch(() => undefined) : Promise.resolve(undefined),
+      ]);
+      if (!stopped && (running !== undefined || fg !== undefined)) rules.setApps(running, fg);
+    } finally {
+      appPolling = false;
+    }
+  }
+  const appTimer = setInterval(() => void pollApps(), opts.appPollMs ?? 3000);
+  (appTimer as any).unref?.();
 
   const weather = new WeatherService({ fetch: opts.weatherFetch, hass: () => hass });
   async function weatherItems(): Promise<Record<string, unknown>> {
@@ -363,11 +442,40 @@ export async function startServer(opts: StartOptions = {}) {
   };
 
   let lastStats: Stats | undefined;
+  // GPU and CPU temperature ride along in every stats message once read; polled slower, only for widgets that show them
+  let sensors: { gpu?: GpuReading["stats"]; cpuTemp?: CpuTempReading } = {};
   const stopStats = deps.startStats((stats) => {
-    lastStats = stats;
+    lastStats = { ...stats, ...sensors };
     rules.setCpu(stats.cpu);
-    broadcast({ type: "stats", stats });
+    broadcast({ type: "stats", stats: lastStats });
   });
+  const hasWidget = (kind: string) => layout.pages.some((p) => p.items.some((i) => i.kind === "widget" && i.widget === kind));
+  let sensorBusy = false;
+  let tempMissSince = 0;
+  async function pollSensors() {
+    if (sensorBusy || stopped || sockets.size === 0) return;
+    const wantGpu = hasWidget("gpu"), wantTemp = hasWidget("cputemp") && !!deps.cpuTemp;
+    if (!wantGpu && !wantTemp) return;
+    sensorBusy = true;
+    try {
+      const next = { ...sensors };
+      if (wantGpu && deps.readGpu) next.gpu = (await deps.readGpu().catch(() => null))?.stats ?? null;
+      // no sensor source: look again once a minute instead of every poll (the WMI query is not free)
+      if (wantTemp && (sensors.cpuTemp?.celsius !== null || Date.now() - tempMissSince > 60_000)) {
+        next.cpuTemp = await deps.cpuTemp!().catch(() => ({ celsius: null, source: "none" as const }));
+        if (next.cpuTemp.celsius === null) tempMissSince = Date.now();
+      }
+      sensors = next;
+      if (lastStats && !stopped) {
+        lastStats = { ...lastStats, ...sensors };
+        broadcast({ type: "stats", stats: lastStats });
+      }
+    } finally {
+      sensorBusy = false;
+    }
+  }
+  const sensorTimer = setInterval(() => void pollSensors(), opts.sensorPollMs ?? 5000);
+  (sensorTimer as any).unref?.();
 
   // ----- media: polled only while at least one socket is connected -----
   const tracker = new MediaTracker({ read: deps.readMedia, artwork: deps.fetchArtwork });
@@ -754,6 +862,7 @@ export async function startServer(opts: StartOptions = {}) {
             return json({ error: `could not write the layout file: ${err?.message ?? String(err)}` }, 500);
           }
           layout = next;
+          void holds.release(); // a held button may be gone or changed
           setLanguage(layout.theme?.language);
           syncHass();
           await history.push(next).catch((e) => console.error("layout history", e));
@@ -901,6 +1010,30 @@ export async function startServer(opts: StartOptions = {}) {
         } else await probes.requestAutomation(what.bundle!);
         const item = (await doctorReport()).items.find((i) => i.id === what.id);
         return json({ ok: true, item });
+      }
+
+      // ----- gaming pickers for the management page (localhost only, read-only) -----
+      if (path === "/api/apps/running" && req.method === "GET") {
+        const denied = guardLocal(server, req);
+        if (denied) return denied;
+        const [running, foreground] = await Promise.all([
+          deps.runningApps ? deps.runningApps().catch(() => null) : Promise.resolve(null),
+          deps.foregroundApp ? deps.foregroundApp().catch(() => null) : Promise.resolve(null),
+        ]);
+        return json({ running: running ? [...running].sort((a, b) => a.localeCompare(b)) : null, foreground, supported: { running: !!deps.runningApps, foreground: !!deps.foregroundApp } });
+      }
+      if (path === "/api/audio/sessions" && req.method === "GET") {
+        const denied = guardLocal(server, req);
+        if (denied) return denied;
+        if (!deps.audioSessions) return json({ supported: false, sessions: [] });
+        try { return json({ supported: true, sessions: await deps.audioSessions() }); } catch (err: any) { return json({ error: err?.message ?? String(err) }, 500); }
+      }
+      if (path === "/api/audio/devices" && req.method === "GET") {
+        const denied = guardLocal(server, req);
+        if (denied) return denied;
+        const flow = url.searchParams.get("flow") === "input" ? "input" : "output";
+        if (!deps.audioDevices) return json({ supported: false, devices: [] });
+        try { return json({ supported: true, flow, devices: await deps.audioDevices(flow) }); } catch (err: any) { return json({ error: err?.message ?? String(err) }, 500); }
       }
 
       if (path === "/api/doctor/open" && req.method === "POST") {
@@ -1260,6 +1393,21 @@ export async function startServer(opts: StartOptions = {}) {
           }
           return;
         }
+        if (msg?.type === "hold") {
+          // a hotkey button with hold: down = press the keys and keep them, up = release (the phone sends both)
+          const item = layout.pages.find((p) => p.id === msg.pageId)?.items.find((i) => i.id === msg.itemId);
+          const a = item?.kind === "button" ? item.action : undefined;
+          if (!a || a.type !== "hotkey" || !a.hold) return send(ws, { type: "result", reqId, ok: false, error: t("this button does not hold keys") });
+          const key = `${msg.pageId}/${msg.itemId}`;
+          try {
+            if (msg.down === true) { rules.pressed(); await holds.down(key, ws, a.keys); }
+            else await holds.up(key);
+            send(ws, { type: "result", reqId, ok: true });
+          } catch (err: any) {
+            send(ws, { type: "result", reqId, ok: false, error: err?.message ?? String(err) });
+          }
+          return;
+        }
         if (msg?.type !== "press") return;
         const item = layout.pages.find((p) => p.id === msg.pageId)?.items.find((i) => i.id === msg.itemId);
         if (item?.kind === "widget" && item.widget === "entity" && item.entity) {
@@ -1287,6 +1435,7 @@ export async function startServer(opts: StartOptions = {}) {
       },
       close(ws) {
         sockets.delete(ws);
+        void holds.release(ws);
         if (sockets.size === 0 && mediaTimer) {
           stopMediaLoop();
         }
@@ -1308,6 +1457,9 @@ export async function startServer(opts: StartOptions = {}) {
       player.stopAll();
       stopCtl.abort();
       clearInterval(rulesTimer);
+      clearInterval(appTimer);
+      clearInterval(sensorTimer);
+      void holds.release();
       if (weatherTimer) clearInterval(weatherTimer);
       pushes.close();
       unsubHass?.();
