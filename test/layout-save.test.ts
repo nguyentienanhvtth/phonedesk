@@ -4,10 +4,10 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-process.env.PHONEDESK_HOME = mkdtempSync(join(tmpdir(), "pd-save-"));
+process.env.PHONEDESK_HOME ??= mkdtempSync(join(tmpdir(), "pd-save-")); // config reads it once, at first import
 
 const { startServer } = await import("../src/server");
-const { replaceFile } = await import("../src/config");
+const { replaceFile, HOME } = await import("../src/config");
 const { LAYOUT_PRESETS } = await import("../web/shared/layout-presets");
 const { LAYOUT_PRESETS: MANAGE } = await import("../web/manage/src/components/layout-presets");
 
@@ -36,7 +36,7 @@ describe("saving a layout template through the real API", () => {
     const back = await (await fetch(`${base}/api/layout`)).json();
     const gaming = back.pages.find((p: any) => p.id === "gaming");
     expect(gaming.items.map((i: any) => i.widget).filter(Boolean)).toEqual(expect.arrayContaining(["volume", "mic"]));
-    const onDisk = JSON.parse(readFileSync(join(process.env.PHONEDESK_HOME!, "layout.json"), "utf8"));
+    const onDisk = JSON.parse(readFileSync(join(HOME, "layout.json"), "utf8"));
     expect(onDisk.pages.map((p: any) => p.id)).toEqual(["gaming", "stats", "keys"]);
   });
 
@@ -56,7 +56,8 @@ describe("saving a layout template through the real API", () => {
 
 describe("a layout that cannot be written", () => {
   test("answers a JSON error with the reason instead of failing silently", async () => {
-    const file = join(process.env.PHONEDESK_HOME!, "layout.json");
+    const file = join(HOME, "layout.json");
+    if (!HOME.startsWith(tmpdir())) throw new Error(`refusing to touch a non-temporary PhoneDesk home: ${HOME}`);
     rmSync(file, { force: true });
     mkdirSync(join(file, "blocker"), { recursive: true }); // rename onto a non-empty directory fails on every OS
     try {
