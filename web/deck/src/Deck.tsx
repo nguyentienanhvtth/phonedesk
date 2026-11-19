@@ -969,16 +969,26 @@ export function Deck(props: DeckProps) {
     : undefined
 
   useEffect(() => {
+    const timers: number[] = []
+    const set = () => setVp((v) => (v.w === window.innerWidth && v.h === window.innerHeight ? v : { w: window.innerWidth, h: window.innerHeight }))
     const on = () => {
-      const set = () => setVp((v) => (v.w === window.innerWidth && v.h === window.innerHeight ? v : { w: window.innerWidth, h: window.innerHeight }))
       set()
-      window.setTimeout(set, 300) // iOS 12 reports the new size a tick late
+      // iOS reports the new size late (a tick on iOS 12; a Home Screen app launched in landscape or Safari's bars
+      // collapsing can take longer): re-read so the deck never keeps a stale size (a gap on the right/bottom)
+      timers.push(window.setTimeout(set, 300), window.setTimeout(set, 800))
     }
+    const vv = (window as any).visualViewport
     window.addEventListener('resize', on)
     window.addEventListener('orientationchange', on)
+    window.addEventListener('pageshow', on)
+    if (vv) vv.addEventListener('resize', on)
+    on()
     return () => {
+      timers.forEach((t) => clearTimeout(t))
       window.removeEventListener('resize', on)
       window.removeEventListener('orientationchange', on)
+      window.removeEventListener('pageshow', on)
+      if (vv) vv.removeEventListener('resize', on)
     }
   }, [])
 
