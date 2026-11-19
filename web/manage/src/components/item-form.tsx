@@ -320,7 +320,7 @@ function SoundFields({ action, onChange }: { action: Extract<Action, { type: "so
   return (
     <>
       <Field label={t("Sound clip")} id="f-snd" hint={error ? t("Could not load the sound library from the agent.") : t("Upload clips in the Sounds tab.")}
-        error={sounds && !known ? t("This clip is no longer in the library") : undefined}>
+        error={sounds && !known ? t("This clip is no longer in the library") : sounds && sounds.length > 0 && !action.sound ? t("Choose a clip: the button cannot be saved without one.") : undefined}>
         <Select id="f-snd" value={action.sound} onChange={(e) => set({ sound: e.target.value })}
           options={[
             { value: "", label: sounds ? t("Choose a clip...") : t("Loading...") },

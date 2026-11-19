@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { escapePowerShell } from "../actions";
 import { runCapture } from "./exec";
 import { WinHelper } from "./win32/helper";
+import { runShell, shellArgv } from "./win32/shell";
 import { idleSeconds as realIdle, realCredApi, sendInput, vkScan, vkToScan, type CredApi } from "./win32/ffi";
 import { hotkeyEvents, mediaEvents, typeEvents, volumeKeyEvents, type KeyEvent, type VkScan, type VkToScan } from "./win32/keys";
 import type { AppCatalog, MicChange, MicState, Platform, SecretStore } from "./types";
@@ -69,6 +70,8 @@ export interface Win32Deps {
   cred?: CredApi;
   idle?: () => number | null;
   run?: (argv: string[]) => Promise<string>;
+  /** The shell action (default: cmd.exe verbatim, fire-and-forget after a short settle; see win32/shell.ts). */
+  shell?: (command: string) => Promise<void>;
 }
 
 export function createWin32(d: Win32Deps = {}): Platform {
@@ -91,6 +94,8 @@ export function createWin32(d: Win32Deps = {}): Platform {
   // a fake `send` (tests) gets the static US scan table, never the real Win32 lookup
   const toScan = d.toScan ?? (d.send ? undefined : vkToScan);
   const run = d.run ?? ((argv: string[]) => runCapture(argv, 10_000));
+  // an injected runner (tests) also sees the shell argv; the real one is fire-and-forget
+  const shell = d.shell ?? (d.run ? async (c: string) => { await d.run!(shellArgv(c)); } : (c: string) => runShell(c));
   const ids = new Map<string, string>(); // win-<hash> -> AppID
 
   const apps: AppCatalog = {
@@ -173,7 +178,7 @@ export function createWin32(d: Win32Deps = {}): Platform {
 
     async runAction(a) {
       switch (a.type) {
-        case "shell": await run(["cmd", "/c", a.command]); return;
+        case "shell": await shell(a.command); return;
         case "open": {
           const target = a.target.trim();
           if (!target) throw new Error("open target is empty");

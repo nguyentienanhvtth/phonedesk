@@ -36,3 +36,6 @@ export function useDoctor(): { items: DoctorItem[] | null; missing: boolean; err
 export const needsAttention = (items: DoctorItem[] | null, platform: Platform = getPlatform()): number =>
   (items ?? []).filter((i) => (i.status === "missing" || i.status === "denied") && !(platform === "win32" && MAC_ONLY_DOCTOR.has(i.id))).length;
 export const MAC_ONLY_DOCTOR = new Set(["accessibility", "screen-recording", "automation", "input-monitoring"]);
+
+/** Mirrors the agent's OPENABLE_URL (src/doctor.ts): the settings links POST /api/doctor/open accepts. */
+export const OPENABLE_URL = /^(x-apple\.systempreferences:|ms-settings:|windowsdefender:\/\/)[A-Za-z0-9._\-?=&%/:]*$/;

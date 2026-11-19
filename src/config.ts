@@ -572,6 +572,7 @@ function validateAction(a: any, where: string): Action {
     case "page": return { type: "page", page: str(a.page, `${where}.action.page`) };
     case "sound": {
       const sound = str(a.sound, `${where}.action.sound`);
+      if (!sound) throw new Error(`${where}.action.sound: no clip chosen yet (pick one from the Sounds tab)`);
       if (!SOUND_ID_RE.test(sound)) throw new Error(`${where}.action.sound must be an uploaded sound (snd:<id>)`);
       const out: Action = { type: "sound", sound };
       if (a.on !== undefined) { if (!["mac", "phone", "both"].includes(a.on)) throw new Error(`${where}.action.on must be mac, phone or both`); (out as any).on = a.on; }

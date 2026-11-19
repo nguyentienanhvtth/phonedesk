@@ -120,7 +120,7 @@ async function readRelease(base: string, name: string, o: { fetch?: typeof fetch
 
 async function run(argv: string[]): Promise<{ code: number; out: string }> {
   try {
-    const p = Bun.spawn(argv, { stdout: "pipe", stderr: "pipe", stdin: "ignore" });
+    const p = Bun.spawn(argv, { stdout: "pipe", stderr: "pipe", stdin: "ignore", windowsHide: true } as any);
     const [out, err] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text()]);
     return { code: await p.exited, out: out + err };
   } catch (e: any) { return { code: 127, out: String(e?.message ?? e) }; }

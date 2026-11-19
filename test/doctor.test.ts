@@ -291,12 +291,13 @@ describe("GET /api/doctor and the CLI", () => {
   let k: ReturnType<typeof probes>;
   const dir = mkdtempSync(join(tmpdir(), "pd-doc-srv-"));
   const original = defaultLayout();
+  const opened: string[] = [];
   beforeAll(async () => {
     k = probes({ axTrusted: () => false, outputs: { ...FW_ON, ...SIG_ADHOC } });
     const q = (id: string) => ({ id, name: id, windows: [], updatedAt: 1 });
     app = await startServer({
       port: 0, pin: "919191", hostName: async () => "my-mac", hookSecret: "s", webhookKeyFile: join(dir, "wk"), layoutHistoryDir: join(dir, "h"), askSettingsFile: join(dir, "ask.json"),
-      doctorProbes: k.p, doctorWaitMs: 0,
+      doctorProbes: k.p, doctorWaitMs: 0, openExternal: async (u: string) => { opened.push(u); },
       deps: { runAction: async () => {}, startStats: () => () => {}, setVolume: async () => {}, readVolume: async () => null, readMedia: async () => null, fetchArtwork: async () => undefined, topProcesses: async () => [] } as any,
       aiSources: { claude: async () => ({ ...q("claude"), error: "Sign in to Claude Code on this Mac" }), codex: async () => q("codex"), antigravity: async () => q("antigravity"), sessions: async () => [] } as any,
     } as any);
@@ -324,6 +325,31 @@ describe("GET /api/doctor and the CLI", () => {
     expect(ok).toMatchObject({ ok: true, item: { id: "accessibility" } });
     await post({ id: "automation-music" });
     expect(k.asked).toEqual({ ax: 1, auto: ["com.apple.Music"] });
+  });
+
+  test("POST /api/doctor/open opens the item's own settings pane only; unknown ids, items without a pane and foreign pages are refused", async () => {
+    const post = (body: any, headers: Record<string, string> = { "x-phonedesk": "1", "content-type": "application/json" }) => rawFetch(`${base}/api/doctor/open`, { method: "POST", body: JSON.stringify(body), headers });
+    const r = await post({ id: "accessibility" });
+    expect(r.status).toBe(200);
+    expect(await r.json()).toEqual({ ok: true, url: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility" });
+    expect(opened).toEqual(["x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"]);
+    expect((await post({ id: "nope" })).status).toBe(404);
+    expect((await post({ id: "agent" })).status).toBe(400); // no pane
+    expect((await post({ id: "accessibility" }, { "content-type": "text/plain" })).status).toBe(403); // CSRF header missing
+    expect((await rawFetch(`${base}/api/doctor/open`, { method: "POST", body: JSON.stringify({ id: "accessibility" }), headers: { "x-phonedesk": "1", "content-type": "application/json", host: "evil.example" } })).status).toBe(403);
+    expect(opened.length).toBe(1);
+  });
+
+  test("only OS settings links are openable", () => {
+    const item = (settingsUrl: string) => ({ id: "x", title: "x", status: "missing" as const, detail: "", fix: { text: "", settingsUrl } });
+    expect(D.openableUrl(item("ms-settings:network-status"))).toBe("ms-settings:network-status");
+    expect(D.openableUrl(item("windowsdefender://network"))).toBe("windowsdefender://network");
+    expect(D.openableUrl(item("x-apple.systempreferences:com.apple.preference.security?Privacy_Automation"))).toBeTruthy();
+    expect(D.openableUrl(item("https://evil.example"))).toBeNull();
+    expect(D.openableUrl(item("file:///C:/Windows/System32/cmd.exe"))).toBeNull();
+    expect(D.openableUrl(item("ms-settings:x & calc"))).toBeNull();
+    expect(D.openableUrl(item("ms-settings:x\"&calc"))).toBeNull();
+    expect(D.openableUrl(undefined)).toBeNull();
   });
 
   test("the CLI prints the agent's report, --json, --request, and refuses --open without a pane", async () => {

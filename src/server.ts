@@ -7,7 +7,7 @@ const COMPRESSIBLE = /^(text\/|application\/(javascript|json|manifest\+json)|ima
 const gzCache = new Map<string, Uint8Array>();
 import { isLocal, lanIp, localHostName } from "./net";
 import { Pairing, cookieToken, expiryFrom, tokenCookie, withDevicesLock } from "./pairing";
-import { SOUND_MAX, SOUND_TYPES, SoundLibrary, SoundPlayer, bareId, SOUND_ID_HEX, type SpawnFn } from "./sounds";
+import { SOUND_MAX, SOUND_TYPES, SoundLibrary, SoundPlayer, bareId, missingSoundError, SOUND_ID_HEX, type SpawnFn } from "./sounds";
 import type { HassLike } from "./automation-types";
 import { HassClient } from "./hass/client";
 import { HassConfigStore } from "./hass/config";
@@ -41,7 +41,7 @@ import { askHookCommand, hookCommand, hookConfigPath, installAskHook, installHoo
 import { AWAY_IDLE_SECONDS, AskSettingsStore, QUESTION_TIMEOUT_MS, QuestionBroker, parseQuestionInput, readIdleSeconds } from "./questions";
 import { parseProcessesRequest, topProcesses as realTopProcesses, type ProcessInfo, type ProcessSort } from "./processes";
 import { setLanguage, t } from "./i18n";
-import { describeRequest, macIdentifier, realProbes, runDoctor, tccServiceFor, type DoctorReport, type Probes } from "./doctor";
+import { describeRequest, macIdentifier, openableUrl, realProbes, runDoctor, tccServiceFor, type DoctorReport, type Probes } from "./doctor";
 
 /** One mDNS query to 224.0.0.251:5353: enough for macOS to list this binary under Local Network and show its prompt. */
 async function touchLocalNetwork(): Promise<void> {
@@ -128,6 +128,8 @@ export interface StartOptions {
   askSettingsFile?: string;
   /** Probes for GET /api/doctor (fakes in tests: the real ones ask macOS). */
   doctorProbes?: Probes;
+  /** Opens a settings link for POST /api/doctor/open (tests record it; default the platform opener). */
+  openExternal?: (url: string) => Promise<void>;
   /** How long GET /api/doctor waits for the first Claude quota read (default 5000). */
   doctorWaitMs?: number;
   idleSeconds?: () => Promise<number | null>;
@@ -742,6 +744,8 @@ export async function startServer(opts: StartOptions = {}) {
           const body = await readBody(req);
           let next: Layout;
           try { next = validateLayout(body); } catch (err: any) { return json({ error: err?.message ?? String(err) }, 400); }
+          const missing = missingSoundError(next, layout, new Set((await sounds.list()).map((x) => x.id)));
+          if (missing) return json({ error: missing }, 400);
           try {
             await saveLayout(next);
           } catch (err: any) {
@@ -897,6 +901,23 @@ export async function startServer(opts: StartOptions = {}) {
         } else await probes.requestAutomation(what.bundle!);
         const item = (await doctorReport()).items.find((i) => i.id === what.id);
         return json({ ok: true, item });
+      }
+
+      if (path === "/api/doctor/open" && req.method === "POST") {
+        const denied = guardLocal(server, req);
+        if (denied) return denied;
+        const body = await readBody(req);
+        const id = String(body?.id ?? "");
+        const item = (await doctorReport()).items.find((i) => i.id === id);
+        if (!item) return json({ error: "unknown check" }, 404);
+        const url = openableUrl(item);
+        if (!url) return json({ error: "this check has no settings page to open" }, 400);
+        try {
+          await (opts.openExternal ?? ((u: string) => platform.openExternal(u)))(url);
+        } catch (err: any) {
+          return json({ error: err?.message ?? String(err) }, 500);
+        }
+        return json({ ok: true, url });
       }
 
       if (path === "/api/integrations" && req.method === "GET") {

@@ -43,3 +43,13 @@ export function useSounds(): { sounds: Sound[] | null; error: string | null; rel
   }, []);
   return { sounds: cache, error: cache ? null : failed, reload: () => void refreshSounds() };
 }
+
+/**
+ * Why the agent will refuse this file, by its name (it checks the bytes too), as an i18n key with {name} and {formats};
+ * null when the format is fine. flac/aiff are never accepted; ogg is refused on Windows (no Ogg decoder in its player).
+ */
+export function soundFormatProblem(fileName: string, windows: boolean): string | null {
+  if (/\.(flac|aiff?)$/i.test(fileName)) return "“{name}”: this format is not supported. Use {formats}.";
+  if (windows && /\.(ogg|oga|opus)$/i.test(fileName)) return "“{name}”: Windows cannot play ogg clips. Convert it to mp3, m4a or wav.";
+  return null;
+}

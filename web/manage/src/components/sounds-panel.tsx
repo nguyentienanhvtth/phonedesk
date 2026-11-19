@@ -7,8 +7,9 @@ import { Empty } from "@/components/ui/knowns/empty";
 import { Input } from "@/components/ui/knowns/input";
 import { Spinner } from "@/components/ui/knowns/spinner";
 import { ApiError, api, soundUrl } from "@/api";
-import { refreshSounds, setSounds, useSounds } from "@/lib/sounds";
+import { refreshSounds, setSounds, soundFormatProblem, useSounds } from "@/lib/sounds";
 import { t } from "@/lib/i18n";
+import { usePlatform } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 import type { Sound } from "@/types";
 
@@ -19,6 +20,9 @@ const fmtTime = (s?: number) => (s === undefined ? "" : `${Math.floor(s / 60)}:$
 /** Sound library: upload (drag and drop), rename, delete, preview in the browser. */
 export function SoundsPanel() {
   const { sounds, error, reload } = useSounds();
+  // the agent accepts mp3, m4a, wav, aac and ogg; on Windows its player has no Ogg decoder, so ogg is refused there
+  const win = usePlatform() === "win32";
+  const formats = win ? "mp3, m4a, wav, aac" : "mp3, m4a, wav, aac, ogg";
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [over, setOver] = useState(false);
@@ -42,6 +46,11 @@ export function SoundsPanel() {
     for (const f of list) {
       if (!f.type.startsWith("audio/") && !/\.(mp3|wav|m4a|aac|ogg|flac|aiff?)$/i.test(f.name)) {
         setErr(t("“{name}” is not an audio file.", { name: f.name }));
+        continue;
+      }
+      const bad = soundFormatProblem(f.name, win);
+      if (bad) {
+        setErr(t(bad, { name: f.name, formats }));
         continue;
       }
       if (f.size > MAX_BYTES) {
@@ -121,9 +130,10 @@ export function SoundsPanel() {
             className={cn("flex flex-col items-center gap-2 rounded-xl border border-dashed px-4 py-6 text-center transition-colors", over && "border-primary bg-primary/10")}
           >
             <Upload className="size-5 text-muted-foreground" />
-            <p className="text-[13px]">{t("Drag and drop audio files here (mp3, wav, m4a…, up to 5 MB per clip)")}</p>
+            <p className="text-[13px]">{t("Drag and drop audio files here ({formats}; up to 5 MB per clip)", { formats })}</p>
+            {win && <p className="text-xs text-muted-foreground">{t("Windows cannot play ogg clips: convert them to mp3 first.")}</p>}
             <Button size="sm" variant="secondary" loading={busy} onClick={() => input.current?.click()}>{t("Choose files…")}</Button>
-            <input ref={input} type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac" multiple className="hidden" onChange={(e) => e.target.files && void upload(e.target.files)} />
+            <input ref={input} type="file" accept={win ? "audio/mpeg,audio/mp4,audio/wav,audio/aac,.mp3,.wav,.m4a,.aac" : "audio/*,.mp3,.wav,.m4a,.aac,.ogg"} multiple className="hidden" onChange={(e) => e.target.files && void upload(e.target.files)} />
           </div>
           {err && <Alert tone="danger" onDismiss={() => setErr(null)}>{err}</Alert>}
           {!sounds && !error && <Spinner label={t("Loading")} />}

@@ -154,8 +154,8 @@ if (argv[0] === "doctor") {
   const openId = flag("--open");
   if (openId) {
     const item = report.items.find((i) => i.id === openId);
-    const url = item?.fix?.settingsUrl;
-    if (!url) { console.error(`Nothing to open for "${openId}". Ids: ${report.items.filter((i) => i.fix?.settingsUrl).map((i) => i.id).join(", ")}`); process.exit(1); }
+    const url = d.openableUrl(item);
+    if (!url) { console.error(`Nothing to open for "${openId}". Ids: ${report.items.filter((i) => d.openableUrl(i)).map((i) => i.id).join(", ")}`); process.exit(1); }
     await platform.openExternal(url).catch((e) => { console.error(String(e?.message ?? e)); process.exit(1); });
     console.log(`Opened ${url}`);
     process.exit(0);
