@@ -85,3 +85,32 @@ describe("Gaming PC layout", () => {
     expect((copyButton as any).action).toEqual({ type: "hotkey", keys: "ctrl+c" });
   });
 });
+
+describe("Gaming PC Keys page: real Windows shortcuts", () => {
+  const { parseHotkey } = require("../src/platform/hotkey") as typeof import("../src/platform/hotkey");
+  const catalog = JSON.parse(require("node:fs").readFileSync(require("node:path").join(import.meta.dir, "..", "web", "shared", "icon-catalog.json"), "utf8"));
+  const keysPage = () => gamingPcLayout().pages.find((p) => p.id === "keys")!;
+  const action = (id: string) => (keysPage().items.find((i) => i.id === id) as any).action;
+
+  test("no hotkey uses cmd (that is Ctrl on Windows); every hotkey parses", () => {
+    for (const p of gamingPcLayout().pages) for (const it of p.items as any[]) {
+      if (it.action?.type !== "hotkey") continue;
+      expect(it.action.keys).not.toMatch(/(^|\+)cmd(\+|$)/);
+      expect(() => parseHotkey(it.action.keys)).not.toThrow();
+    }
+  });
+  test("Windows-key shortcuts, Game Bar, clip, Task Manager, mic, and Lock through LockWorkStation", () => {
+    expect(action("b-screenshot")).toEqual({ type: "hotkey", keys: "win+shift+s" });
+    expect(action("b-taskview")).toEqual({ type: "hotkey", keys: "win+tab" });
+    expect(action("b-desktop")).toEqual({ type: "hotkey", keys: "win+d" });
+    expect(action("b-gamebar")).toEqual({ type: "hotkey", keys: "win+g" });
+    expect(action("b-record")).toEqual({ type: "hotkey", keys: "win+alt+g" });
+    expect(action("b-taskmgr")).toEqual({ type: "hotkey", keys: "ctrl+shift+escape" });
+    expect(action("b-mic")).toEqual({ type: "mic", command: "toggle" });
+    expect(action("b-lock")).toEqual({ type: "shell", command: "rundll32.exe user32.dll,LockWorkStation" });
+  });
+  test("every icon of the template exists in the icon catalog", () => {
+    const names = new Set<string>(JSON.stringify(catalog).match(/"[a-z0-9-]+"/g)!.map((s: string) => s.slice(1, -1)));
+    for (const p of gamingPcLayout().pages) for (const it of p.items as any[]) if (it.icon) expect(names.has(it.icon) ? it.icon : `missing ${it.icon}`).toBe(it.icon);
+  });
+});

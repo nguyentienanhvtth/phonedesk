@@ -76,15 +76,18 @@ export function gamingPcLayout(): PresetLayout {
           { id: "b-copy", kind: "button", label: "Copy", icon: "copy", x: 0, y: 1, action: { type: "hotkey", keys: "ctrl+c" } },
           { id: "b-paste", kind: "button", label: "Paste", icon: "clipboard", x: 1, y: 1, action: { type: "hotkey", keys: "ctrl+v" } },
           { id: "b-undo", kind: "button", label: "Undo", icon: "arrow-back-up", x: 2, y: 1, action: { type: "hotkey", keys: "ctrl+z" } },
-          { id: "b-redo", kind: "button", label: "Redo", icon: "arrow-forward-up", x: 3, y: 1, action: { type: "hotkey", keys: "ctrl+shift+z" } },
-          { id: "b-save", kind: "button", label: "Save", icon: "device-floppy", x: 4, y: 1, action: { type: "hotkey", keys: "ctrl+s" } },
-          { id: "b-find", kind: "button", label: "Find", icon: "search", x: 5, y: 1, action: { type: "hotkey", keys: "ctrl+f" } },
+          { id: "b-redo", kind: "button", label: "Redo", icon: "arrow-forward-up", x: 3, y: 1, action: { type: "hotkey", keys: "ctrl+y" } },
+          { id: "b-taskmgr", kind: "button", label: "Task Manager", icon: "list-details", x: 4, y: 1, action: { type: "hotkey", keys: "ctrl+shift+escape" } },
+          { id: "b-mic", kind: "button", label: "Mic", icon: "microphone", color: "#ef4444", x: 5, y: 1, action: { type: "mic", command: "toggle" } },
           { id: "b-voldown2", kind: "button", label: "Vol -", icon: "volume-2", x: 6, y: 1, action: { type: "volume", command: "down" } },
           { id: "b-volup2", kind: "button", label: "Vol +", icon: "volume", x: 7, y: 1, action: { type: "volume", command: "up" } },
-          { id: "b-lock", kind: "button", label: "Lock", icon: "lock", x: 0, y: 2, action: { type: "hotkey", keys: "cmd+l" } },
-          { id: "b-screenshot", kind: "button", label: "Screenshot", icon: "camera", x: 1, y: 2, action: { type: "hotkey", keys: "cmd+shift+s" } },
-          { id: "b-taskview", kind: "button", label: "Task View", icon: "layout-grid", x: 2, y: 2, action: { type: "hotkey", keys: "cmd+tab" } },
-          { id: "b-desktop", kind: "button", label: "Desktop", icon: "desktop", x: 3, y: 2, action: { type: "hotkey", keys: "cmd+d" } },
+          // Windows-key shortcuts; Win+L cannot be sent by a program (Windows reserves it), so Lock asks Windows directly
+          { id: "b-lock", kind: "button", label: "Lock", icon: "lock", x: 0, y: 2, action: { type: "shell", command: "rundll32.exe user32.dll,LockWorkStation" } },
+          { id: "b-screenshot", kind: "button", label: "Screenshot", icon: "camera", x: 1, y: 2, action: { type: "hotkey", keys: "win+shift+s" } },
+          { id: "b-taskview", kind: "button", label: "Task View", icon: "layout-grid", x: 2, y: 2, action: { type: "hotkey", keys: "win+tab" } },
+          { id: "b-desktop", kind: "button", label: "Desktop", icon: "desktop", x: 3, y: 2, action: { type: "hotkey", keys: "win+d" } },
+          { id: "b-gamebar", kind: "button", label: "Game Bar", icon: "brand-xbox", color: "#107c10", x: 4, y: 2, action: { type: "hotkey", keys: "win+g" } },
+          { id: "b-record", kind: "button", label: "Clip 30s", icon: "player-record", color: "#ef4444", x: 5, y: 2, action: { type: "hotkey", keys: "win+alt+g" } },
           { id: "b-gaming2", kind: "button", label: "Gaming", icon: "device-gamepad-2", color: "#f97316", x: 6, y: 2, action: { type: "page", page: "gaming" } },
           { id: "b-stats2", kind: "button", label: "Stats", icon: "chart-line", color: "#0ea5e9", x: 7, y: 2, action: { type: "page", page: "stats" } },
         ],
@@ -136,6 +139,6 @@ export function basicMediaLayout(): PresetLayout {
 }
 
 export const LAYOUT_PRESETS: LayoutPresetDef[] = [
-  { id: "gaming-pc", name: "Gaming PC", hint: "CS2, Steam, Discord, Spotify, GPU/CPU stats, volume/mic sliders", platform: "win32", rev: 2, layout: gamingPcLayout },
+  { id: "gaming-pc", name: "Gaming PC", hint: "CS2, Steam, Discord, Spotify, GPU/CPU stats, volume/mic sliders", platform: "win32", rev: 3, layout: gamingPcLayout },
   { id: "basic-media", name: "Media Remote", hint: "Now playing, volume controls, system stats", platform: "all", rev: 1, layout: basicMediaLayout },
 ];
