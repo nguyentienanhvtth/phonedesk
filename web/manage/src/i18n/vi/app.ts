@@ -12,6 +12,8 @@ export const VI_APP: Record<string, string> = {
   "Manage your control screen": "Quản lý màn hình điều khiển",
   "Only reachable from this Mac": "Chỉ truy cập được từ máy này",
   "Unsaved": "Chưa lưu",
+  "Save failed: {error}": "Lưu thất bại: {error}",
+  "The PhoneDesk agent did not answer in time": "Agent PhoneDesk không phản hồi kịp",
   "Undo": "Hoàn tác",
   "Undo (⌘Z)": "Hoàn tác (⌘Z)",
   "Redo": "Làm lại",

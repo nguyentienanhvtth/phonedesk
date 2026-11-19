@@ -22,7 +22,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   try {
     res = await fetch(path, init);
-  } catch {
+  } catch (e) {
+    if (e instanceof DOMException && (e.name === "TimeoutError" || e.name === "AbortError")) throw new ApiError(t("The PhoneDesk agent did not answer in time"), 0);
     throw new ApiError(t("Cannot reach the PhoneDesk agent"), 0);
   }
   let data: unknown = null;
@@ -275,7 +276,8 @@ export const api = {
   disableAskHook: () => request<unknown>("/api/integrations/claude/ask-hook", { method: "DELETE" }),
   disableHook: (id: AiProvider) => request<unknown>(hookUrl(id), { method: "DELETE" }),
   getLayout: () => request<Layout>("/api/layout"),
-  putLayout: (layout: Layout) => request<unknown>("/api/layout", json("PUT", layout)),
+  // A save that hangs must not leave the page stuck on "Unsaved" with a spinning button: give up after 20 s and say so.
+  putLayout: (layout: Layout) => request<unknown>("/api/layout", { ...json("PUT", layout), signal: AbortSignal.timeout(20_000) }),
   getDevices: () => request<DeviceInfo[]>("/api/devices"),
   /** Asks the deck on one device (or all, without deviceId) to reload. The reply may carry the number reached. */
   reloadDevices: (deviceId?: string) => request<unknown>("/api/devices/reload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(deviceId ? { deviceId } : {}) }),

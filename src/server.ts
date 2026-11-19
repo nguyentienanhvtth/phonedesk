@@ -538,6 +538,11 @@ export async function startServer(opts: StartOptions = {}) {
     idleTimeout: 120, // permission hooks long-poll for up to 55 s
     port: opts.port ?? 7420,
     hostname: opts.hostname ?? "0.0.0.0",
+    // An unexpected throw in a route answers JSON (the manage page shows it) instead of Bun's HTML error page.
+    error(err: Error) {
+      console.error("request failed:", err);
+      return json({ error: "internal error in the PhoneDesk agent (see its console)" }, 500);
+    },
     fetch: slowWatch(async (req: Request, server: any) => {
       const url = new URL(req.url);
       const path = url.pathname;
@@ -718,7 +723,13 @@ export async function startServer(opts: StartOptions = {}) {
           const body = await readBody(req);
           let next: Layout;
           try { next = validateLayout(body); } catch (err: any) { return json({ error: err?.message ?? String(err) }, 400); }
-          await saveLayout(next);
+          try {
+            await saveLayout(next);
+          } catch (err: any) {
+            // e.g. Windows refusing to replace layout.json while it is open elsewhere: tell the manage page why
+            console.error("saving the layout failed:", err);
+            return json({ error: `could not write the layout file: ${err?.message ?? String(err)}` }, 500);
+          }
           layout = next;
           setLanguage(layout.theme?.language);
           syncHass();
