@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # PhoneDesk for macOS: one command to fetch, verify, install and start it.
+# This is the nguyentienanhvtth fork — it fetches releases from nguyentienanhvtth/phonedesk only.
 #
 # Usage
-#   curl -fsSL https://raw.githubusercontent.com/howznguyen/phonedesk/main/setup.sh | bash
-#   curl -fsSL https://raw.githubusercontent.com/howznguyen/phonedesk/main/setup.sh | bash -s -- --port 7421 --no-autostart
+#   curl -fsSL https://raw.githubusercontent.com/nguyentienanhvtth/phonedesk/main/setup.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/nguyentienanhvtth/phonedesk/main/setup.sh | bash -s -- --port 7421 --no-autostart
 #
 # Needs no sudo (it refuses to run as root). Run it again any time to upgrade; ~/.phonedesk is never wiped.
 #
@@ -27,7 +28,8 @@
 #   PHONEDESK_RETRY_SECONDS  scales the pause between lookup rounds
 set -euo pipefail
 
-REPO="howznguyen/phonedesk"
+# This fork fetches releases from nguyentienanhvtth/phonedesk, never from the upstream howznguyen/phonedesk.
+REPO="nguyentienanhvtth/phonedesk"
 STAGES=6
 yes=0; version="${PHONEDESK_VERSION:-}"; version="${version#v}"; port=7420
 autostart=1; start=1; open_page=1; dry=0; add_path=1; force=0

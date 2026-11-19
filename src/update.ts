@@ -8,13 +8,22 @@ import { platform } from "./platform";
 import pkg from "../package.json" with { type: "json" };
 
 /**
- * The GitHub repository for release lookups. Override with PHONEDESK_REPO to point to a fork.
- * Set PHONEDESK_NO_UPSTREAM_UPDATE=1 to disable all automatic update checks from upstream.
+ * The GitHub repository for release lookups.
+ *
+ * This fork (nguyentienanhvtth/phonedesk) has upstream auto-updates DISABLED by default.
+ * Updates only check this fork's own releases, never the upstream (howznguyen/phonedesk).
+ *
+ * To enable update checks from this fork, set the theme.updateCheck option to true in the layout.
+ * The env var PHONEDESK_REPO can override the repository (for testing or other forks).
  */
-export const REPO = process.env.PHONEDESK_REPO ?? "howznguyen/phonedesk";
+export const REPO = process.env.PHONEDESK_REPO ?? "nguyentienanhvtth/phonedesk";
 
-/** True when upstream updates are disabled (for forks that build their own releases). */
-export const upstreamUpdatesDisabled = (): boolean => process.env.PHONEDESK_NO_UPSTREAM_UPDATE === "1";
+/**
+ * True when upstream updates are disabled.
+ * In this fork: defaults to true (disabled) unless PHONEDESK_ENABLE_UPDATE_CHECK=1.
+ * This prevents the fork from ever downloading upstream releases.
+ */
+export const upstreamUpdatesDisabled = (): boolean => process.env.PHONEDESK_ENABLE_UPDATE_CHECK !== "1";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -256,7 +265,7 @@ export class UpdateChecker {
     const current = this.o.current?.() ?? currentVersion();
     const now = (this.o.now ?? Date.now)();
     if (!enabled || upstreamUpdatesDisabled()) {
-      return { current, latest: null, available: false, checkedAt: null, enabled: false, ...(upstreamUpdatesDisabled() ? { error: "upstream updates disabled (PHONEDESK_NO_UPSTREAM_UPDATE=1)" } : {}) };
+      return { current, latest: null, available: false, checkedAt: null, enabled: false, ...(upstreamUpdatesDisabled() ? { error: `update checks disabled in this fork (set PHONEDESK_ENABLE_UPDATE_CHECK=1 to enable checks from ${REPO})` } : {}) };
     }
     if (force || !this.cache || now - this.cache.at >= UPDATE_TTL_MS) {
       this.inflight ??= (async () => {

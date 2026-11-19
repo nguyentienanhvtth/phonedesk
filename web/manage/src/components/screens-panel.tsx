@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IconArrowDown as ArrowDown, IconArrowUp as ArrowUp, IconPointer as Cursor, IconMinus as Minus, IconPlus as Plus, IconTrash as Trash } from "@tabler/icons-react";
+import { IconArrowDown as ArrowDown, IconArrowUp as ArrowUp, IconPointer as Cursor, IconMinus as Minus, IconPlus as Plus, IconTrash as Trash, IconTemplate as Template, IconCheck as Check } from "@tabler/icons-react";
 import { Alert } from "@/components/ui/knowns/alert";
 import { Button } from "@/components/ui/knowns/button";
 import { Card } from "@/components/ui/knowns/card";
@@ -15,6 +15,8 @@ import type { PaletteEntry } from "@/lib/palette";
 import { cn } from "@/lib/utils";
 import { t, useLanguage } from "@/lib/i18n";
 import { findFree, randomId, GRID_PRESETS, PROVIDER_LABEL, WIDGET_LABEL, actionSummary, duplicateItem, moveTile, newItem, repack, resizeGrid, resizeTile, setWidgetKind, uniquePageId, type GridResult } from "@/lib/layout";
+import { presetsForPlatform, type LayoutPreset } from "@/components/layout-presets";
+import { usePlatform } from "@/lib/platform";
 import type { Item, Layout, Page, WidgetKind } from "@/types";
 
 export function ScreensPanel({ layout, pageIdx, itemId, setPageIdx, setItemId, update, orientation, onOrientation }: {
@@ -28,6 +30,7 @@ export function ScreensPanel({ layout, pageIdx, itemId, setPageIdx, setItemId, u
   onOrientation: (o: Orientation) => void;
 }) {
   useLanguage();
+  const platform = usePlatform();
   const page = layout.pages[pageIdx]!;
   const item = page.items.find((i) => i.id === itemId);
   const [cell, setCell] = useState<{ x: number; y: number } | null>(null);
@@ -142,12 +145,62 @@ export function ScreensPanel({ layout, pageIdx, itemId, setPageIdx, setItemId, u
     }
   };
 
+  const presets = presetsForPlatform(platform);
+  const [showPresets, setShowPresets] = useState(false);
+  const [presetConfirm, setPresetConfirm] = useState<LayoutPreset | null>(null);
+
+  const applyPreset = (preset: LayoutPreset) => {
+    const keepTheme = layout.theme;
+    update(() => ({ ...preset.layout, theme: keepTheme }));
+    setPageIdx(0);
+    select(null);
+    setPresetConfirm(null);
+    setShowPresets(false);
+  };
+
   return (
     <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[290px_minmax(0,1fr)_360px]">
       {/* Left: screens + tile list */}
       <div className="flex min-h-0 flex-col gap-3 overflow-hidden">
         <Card className="max-h-[38%] flex-none overflow-y-auto p-2 kn-scroll-auto">
           <PagesList layout={layout} pageIdx={pageIdx} setPageIdx={(i) => { setPageIdx(i); select(null); }} update={update} onAdd={addPage} />
+          {presets.length > 0 && (
+            <div className="mt-2 border-t pt-2">
+              <button
+                type="button"
+                onClick={() => setShowPresets((v) => !v)}
+                className="flex w-full items-center justify-between gap-2 rounded-md px-1.5 py-1.5 text-left text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <span className="flex items-center gap-1.5"><Template className="size-3.5" />{t("Layout templates")}</span>
+                <span className="text-[10px]">{showPresets ? "▼" : "▶"}</span>
+              </button>
+              {showPresets && (
+                <div className="mt-1.5 flex flex-col gap-1">
+                  {presets.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setPresetConfirm(p)}
+                      className="flex flex-col gap-0.5 rounded-lg border px-2.5 py-2 text-left transition-colors hover:bg-muted"
+                    >
+                      <span className="text-[13px] font-medium">{t(p.name)}</span>
+                      <span className="text-[11px] text-muted-foreground">{t(p.hint)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {presetConfirm && (
+                <div className="mt-2 rounded-lg border border-warning bg-warning/10 p-2.5">
+                  <p className="text-xs font-medium text-warning-foreground">{t("Replace entire layout with \"{name}\"?", { name: t(presetConfirm.name) })}</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">{t("This will replace all screens. Your theme is kept.")}</p>
+                  <div className="mt-2 flex gap-1.5">
+                    <Button size="xs" variant="secondary" onClick={() => setPresetConfirm(null)}>{t("Cancel")}</Button>
+                    <Button size="xs" icon={<Check />} onClick={() => applyPreset(presetConfirm)}>{t("Apply")}</Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </Card>
         <Card className="flex min-h-0 flex-1 flex-col gap-2 p-2">
           <SegmentedControl

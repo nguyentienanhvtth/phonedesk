@@ -29,36 +29,35 @@ describe("environment variables for fork control", () => {
   const originalEnv = { ...process.env };
 
   afterEach(() => {
-    process.env.PHONEDESK_NO_UPSTREAM_UPDATE = originalEnv.PHONEDESK_NO_UPSTREAM_UPDATE;
+    process.env.PHONEDESK_ENABLE_UPDATE_CHECK = originalEnv.PHONEDESK_ENABLE_UPDATE_CHECK;
     process.env.PHONEDESK_REPO = originalEnv.PHONEDESK_REPO;
   });
 
-  test("PHONEDESK_NO_UPSTREAM_UPDATE=1 disables upstream update checks", async () => {
-    process.env.PHONEDESK_NO_UPSTREAM_UPDATE = "1";
-    const { upstreamUpdatesDisabled: check } = await import("../src/update");
-    expect(check()).toBe(true);
-    const checker = new UpdateChecker();
-    const result = await checker.get(true);
-    expect(result.enabled).toBe(false);
-    expect(result.error).toContain("upstream updates disabled");
+  test("updates disabled by default in this fork (upstreamUpdatesDisabled returns true)", () => {
+    delete process.env.PHONEDESK_ENABLE_UPDATE_CHECK;
+    expect(upstreamUpdatesDisabled()).toBe(true);
   });
 
-  test("REPO defaults to howznguyen/phonedesk when PHONEDESK_REPO is not set", () => {
-    expect(REPO).toBe("howznguyen/phonedesk");
-  });
-
-  test("upstreamUpdatesDisabled returns false by default", () => {
-    delete process.env.PHONEDESK_NO_UPSTREAM_UPDATE;
+  test("PHONEDESK_ENABLE_UPDATE_CHECK=1 enables update checks", async () => {
+    process.env.PHONEDESK_ENABLE_UPDATE_CHECK = "1";
     expect(upstreamUpdatesDisabled()).toBe(false);
-  });
-
-  test("UpdateChecker proceeds normally when upstream updates are not disabled", async () => {
-    delete process.env.PHONEDESK_NO_UPSTREAM_UPDATE;
     let fetched = false;
     const checker = new UpdateChecker({ latest: async () => { fetched = true; return "v1.0.0"; } });
     const result = await checker.get(true);
     expect(fetched).toBe(true);
     expect(result.enabled).toBe(true);
+  });
+
+  test("REPO defaults to nguyentienanhvtth/phonedesk (this fork)", () => {
+    expect(REPO).toBe("nguyentienanhvtth/phonedesk");
+  });
+
+  test("UpdateChecker returns disabled when updates are off (default)", async () => {
+    delete process.env.PHONEDESK_ENABLE_UPDATE_CHECK;
+    const checker = new UpdateChecker();
+    const result = await checker.get(true);
+    expect(result.enabled).toBe(false);
+    expect(result.error).toContain("update checks disabled in this fork");
   });
 });
 
