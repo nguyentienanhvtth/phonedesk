@@ -5,7 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 process.env.PHONEDESK_HOME ??= mkdtempSync(join(tmpdir(), "pd-snd-"));
-const { SoundLibrary, SoundPlayer, soundKind, parseAfinfo, playCommand, MAX_CONCURRENT, SOUND_MAX } = await import("../src/sounds");
+const { SoundLibrary, SoundPlayer, soundKind, parseAfinfo, playCommand, MAX_CONCURRENT, SOUND_MAX, playableExts, soundRefs, missingSoundError } = await import("../src/sounds");
+const { soundFormatProblem } = await import("../web/manage/src/lib/sounds");
 
 const bytes = (...parts: (string | number[])[]) => new Uint8Array(parts.flatMap((p) => (typeof p === "string" ? [...p].map((c) => c.charCodeAt(0)) : p)));
 export const MP3 = bytes("ID3", [3, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
@@ -66,7 +67,7 @@ describe("SoundLibrary", () => {
   });
 
   test("rejects non-audio, empty and oversized; a missing afinfo is fine", async () => {
-    const lib = new SoundLibrary({ home: tmp(), run: async () => { throw new Error("no afinfo"); } });
+    const lib = new SoundLibrary({ home: tmp(), os: "darwin", run: async () => { throw new Error("no afinfo"); } });
     await expect(lib.add(bytes("<svg/> padding padding"))).rejects.toThrow("mp3, m4a, wav");
     await expect(lib.add(new Uint8Array())).rejects.toThrow("empty");
     await expect(lib.add(new Uint8Array(SOUND_MAX + 1).fill(1))).rejects.toThrow("5 MB");
@@ -75,7 +76,7 @@ describe("SoundLibrary", () => {
     expect(ok.name.length).toBe(80);
   });
   test("concurrent adds all land in sounds.json", async () => {
-    const lib = new SoundLibrary({ home: tmp(), run: fakeRun });
+    const lib = new SoundLibrary({ home: tmp(), os: "linux", run: fakeRun });
     await Promise.all([MP3, M4A, WAV, OGG, AAC].map((b) => lib.add(b)));
     expect((await lib.list()).length).toBe(5);
   });
@@ -153,5 +154,41 @@ describe("playCommand and SoundPlayer", () => {
     expect(changes.at(-1)).toEqual([]);
     player.stopAll(); // nothing changed: no extra notification
     expect(changes.filter((c) => c.length === 0).length).toBe(1);
+  });
+});
+
+describe("sound formats per OS and sound references", () => {
+  const tmp2 = () => mkdtempSync(join(tmpdir(), "pd-snd-os-"));
+  test("Windows refuses ogg with a clear reason (its player has no Ogg decoder); other formats still go in", async () => {
+    expect(playableExts("win32")).toEqual(["mp3", "m4a", "wav", "aac"]);
+    expect(playableExts("darwin")).toContain("ogg");
+    const lib = new SoundLibrary({ home: tmp2(), os: "win32", run: async () => "" });
+    await expect(lib.add(OGG, "a.ogg")).rejects.toThrow("ogg audio cannot play on Windows: convert the clip to mp3, m4a or wav");
+    await expect(lib.add(bytes("<svg/> padding padding"))).rejects.toThrow("only mp3, m4a, wav or aac audio is accepted");
+    expect((await lib.add(MP3, "a")).ext).toBe("mp3");
+    expect((await lib.list()).length).toBe(1); // the refused ogg left nothing behind
+  });
+
+  test("the manage page says why before uploading: flac/aiff everywhere, ogg on Windows", () => {
+    expect(soundFormatProblem("a.flac", false)).toContain("not supported");
+    expect(soundFormatProblem("a.ogg", true)).toContain("Windows cannot play ogg");
+    expect(soundFormatProblem("a.ogg", false)).toBeNull();
+    expect(soundFormatProblem("a.mp3", true)).toBeNull();
+  });
+
+  test("soundRefs finds clips on buttons, inside macros and in rules, with the button label", () => {
+    const layout = { version: 1, pages: [{ id: "p", name: "P", items: [
+      { id: "a", label: "Horn", action: { type: "sound", sound: "snd:aaaaaaaaaaaaaaaa" } },
+      { id: "m", label: "Combo", action: { type: "macro", steps: [{ action: { type: "sound", sound: "bbbbbbbbbbbbbbbb" } }] } },
+    ] }], rules: [{ id: "r", name: "Rule", then: [{ type: "sound", sound: "snd:cccccccccccccccc" }] }] };
+    expect(soundRefs(layout)).toEqual([
+      { sound: "snd:aaaaaaaaaaaaaaaa", label: "Horn" },
+      { sound: "snd:bbbbbbbbbbbbbbbb", label: "Combo" },
+      { sound: "snd:cccccccccccccccc", label: "Rule" },
+    ]);
+    const lib = new Set(["snd:aaaaaaaaaaaaaaaa", "snd:bbbbbbbbbbbbbbbb"]);
+    expect(missingSoundError(layout, {}, lib)).toContain("“Rule” plays a sound that is not in the library (snd:cccccccccccccccc)");
+    // already on the saved layout (its clip was deleted later): still saveable
+    expect(missingSoundError(layout, layout, lib)).toBeNull();
   });
 });

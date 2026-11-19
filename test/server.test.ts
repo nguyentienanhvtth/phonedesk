@@ -797,7 +797,14 @@ describe("soundboard", () => {
 
   test("pressing sound buttons: mac spawns afplay, phone sends play-sound to the presser only, stop kills all", async () => {
     const snd = await (await upload(mp3)).json() as any;
+    const doomed = await (await upload(mp3)).json() as any;
     const mk = (id: string, action: any) => ({ id, kind: "button", label: id, action });
+    // a clip that was never uploaded cannot be saved onto a button; the error names the button
+    const bad = await fetch(`${base}/api/layout`, { method: "PUT", body: JSON.stringify({ version: 1, pages: [{ id: "x", name: "X", columns: 2, rows: 1, items: [mk("Airhorn", { type: "sound", sound: "snd:ffffffffffffffff" })] }] }) });
+    expect(bad.status).toBe(400);
+    expect((await bad.json() as any).error).toContain("“Airhorn” plays a sound that is not in the library");
+    const empty = await fetch(`${base}/api/layout`, { method: "PUT", body: JSON.stringify({ version: 1, pages: [{ id: "x", name: "X", columns: 2, rows: 1, items: [mk("a", { type: "sound", sound: "" })] }] }) });
+    expect((await empty.json() as any).error).toContain("no clip chosen yet");
     const layout = {
       version: 1,
       pages: [{ id: "snd", name: "Snd", columns: 4, rows: 2, items: [
@@ -805,11 +812,14 @@ describe("soundboard", () => {
         mk("ph", { type: "sound", sound: snd.id, on: "phone", volume: 70, mode: "overlap" }),
         mk("both", { type: "sound", sound: snd.id, on: "both", mode: "toggle" }),
         mk("stop", { type: "sound-stop" }),
-        mk("gone", { type: "sound", sound: "snd:ffffffffffffffff" }),
+        mk("gone", { type: "sound", sound: doomed.id }),
       ] }],
     };
     const put = await fetch(`${base}/api/layout`, { method: "PUT", body: JSON.stringify(layout) });
     expect(put.status).toBe(200);
+    // deleting a clip leaves its button behind; the layout stays saveable (the editor flags it)
+    expect((await fetch(`${base}/api/sounds/${doomed.id}`, { method: "DELETE" })).status).toBe(200);
+    expect((await fetch(`${base}/api/layout`, { method: "PUT", body: JSON.stringify(layout) })).status).toBe(200);
 
     // earlier tests may have revoked the shared device: pair a fresh one
     const { pin } = await (await fetch(`${base}/api/pairing`)).json() as any;

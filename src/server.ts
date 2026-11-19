@@ -7,7 +7,7 @@ const COMPRESSIBLE = /^(text\/|application\/(javascript|json|manifest\+json)|ima
 const gzCache = new Map<string, Uint8Array>();
 import { isLocal, lanIp, localHostName } from "./net";
 import { Pairing, cookieToken, expiryFrom, tokenCookie, withDevicesLock } from "./pairing";
-import { SOUND_MAX, SOUND_TYPES, SoundLibrary, SoundPlayer, bareId, SOUND_ID_HEX, type SpawnFn } from "./sounds";
+import { SOUND_MAX, SOUND_TYPES, SoundLibrary, SoundPlayer, bareId, missingSoundError, SOUND_ID_HEX, type SpawnFn } from "./sounds";
 import type { HassLike } from "./automation-types";
 import { HassClient } from "./hass/client";
 import { HassConfigStore } from "./hass/config";
@@ -744,6 +744,8 @@ export async function startServer(opts: StartOptions = {}) {
           const body = await readBody(req);
           let next: Layout;
           try { next = validateLayout(body); } catch (err: any) { return json({ error: err?.message ?? String(err) }, 400); }
+          const missing = missingSoundError(next, layout, new Set((await sounds.list()).map((x) => x.id)));
+          if (missing) return json({ error: missing }, 400);
           try {
             await saveLayout(next);
           } catch (err: any) {

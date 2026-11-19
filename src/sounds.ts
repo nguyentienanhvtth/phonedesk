@@ -49,8 +49,15 @@ export function parseAfinfo(out: string): number | undefined {
   return Number.isFinite(n) && n > 0 ? Math.round(n * 1000) : undefined;
 }
 
+/** Formats the agent's own player can play on this OS: Windows plays through WPF MediaPlayer, which has no Ogg decoder. */
+export function playableExts(os: string = osPlatform.id): SoundExt[] {
+  return os === "win32" ? ["mp3", "m4a", "wav", "aac"] : ["mp3", "m4a", "wav", "aac", "ogg"];
+}
+
 export interface LibraryOptions {
   home?: string;
+  /** Which OS the clips play on (tests; default this one). */
+  os?: string;
   run?: (argv: string[], timeoutMs?: number) => Promise<string>;
   now?: () => number;
 }
@@ -60,12 +67,14 @@ export class SoundLibrary {
   private home: string;
   private run: NonNullable<LibraryOptions["run"]>;
   private now: () => number;
+  private os: string;
   private chain: Promise<unknown> = Promise.resolve();
 
   constructor(opts: LibraryOptions = {}) {
     this.home = opts.home ?? HOME;
     this.run = opts.run ?? ((argv, t) => runCapture(argv, t));
     this.now = opts.now ?? Date.now;
+    this.os = opts.os ?? osPlatform.id;
   }
 
   private get dir() { return join(this.home, "sounds"); }
@@ -98,7 +107,9 @@ export class SoundLibrary {
     if (bytes.length === 0) throw new Error("empty file");
     if (bytes.length > SOUND_MAX) throw new Error("file is larger than 5 MB");
     const ext = soundKind(bytes);
-    if (!ext) throw new Error("only mp3, m4a, wav, aac or ogg audio is accepted");
+    const ok = playableExts(this.os);
+    if (!ext) throw new Error(`only ${ok.slice(0, -1).join(", ")} or ${ok.at(-1)} audio is accepted`);
+    if (!ok.includes(ext)) throw new Error("ogg audio cannot play on Windows: convert the clip to mp3, m4a or wav");
     const id = randomBytes(8).toString("hex");
     const file = join(this.dir, `${id}.${ext}`);
     await mkdir(this.dir, { recursive: true, mode: 0o700 });
@@ -229,4 +240,35 @@ export class SoundPlayer {
     this.killId(id);
     this.changed();
   }
+}
+
+/**
+ * Every sound clip a layout plays (buttons, macro steps, rules), with the label of the button that plays it.
+ * Walks the JSON so a new place that holds actions is covered without touching this.
+ */
+export function soundRefs(layout: unknown): { sound: string; label: string }[] {
+  const out: { sound: string; label: string }[] = [];
+  const walk = (v: unknown, label: string) => {
+    if (Array.isArray(v)) return v.forEach((x) => walk(x, label));
+    if (!v || typeof v !== "object") return;
+    const o = v as Record<string, unknown>;
+    const here = typeof o.label === "string" && o.label.trim() ? o.label.trim() : typeof o.name === "string" && o.name.trim() ? o.name.trim() : label;
+    if (o.type === "sound" && typeof o.sound === "string") out.push({ sound: `snd:${bareId(o.sound)}`, label: here });
+    for (const x of Object.values(o)) if (x && typeof x === "object") walk(x, here);
+  };
+  walk(layout, "");
+  return out;
+}
+
+/**
+ * The first clip `next` plays that is neither in the library nor already in `prev` (a clip deleted later keeps its
+ * buttons saveable: the editor flags those), as an error message; null when every new reference exists.
+ */
+export function missingSoundError(next: unknown, prev: unknown, library: Set<string>): string | null {
+  const before = new Set(soundRefs(prev).map((r) => r.sound));
+  const bad = soundRefs(next).find((r) => !library.has(r.sound) && !before.has(r.sound));
+  if (!bad) return null;
+  return bad.label
+    ? `“${bad.label}” plays a sound that is not in the library (${bad.sound}): upload it in the Sounds tab or pick another clip`
+    : `a button plays a sound that is not in the library (${bad.sound}): upload it in the Sounds tab or pick another clip`;
 }
