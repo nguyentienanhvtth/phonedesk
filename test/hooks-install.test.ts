@@ -11,7 +11,9 @@ const CMD = hookCommand("claude", { execPath: "/opt/phonedesk", indexPath: "/x/s
 describe("hookCommand", () => {
   test("compiled vs source mode, always carries the marker", () => {
     expect(hookCommand("claude", { execPath: "/opt/pd dir/phonedesk" })).toBe(`'/opt/pd dir/phonedesk' hook claude # ${HOOK_MARKER}`);
-    expect(hookCommand("codex", { execPath: "/u/.bun/bin/bun", indexPath: "/r/src/index.ts" })).toBe(`'/u/.bun/bin/bun' '/r/src/index.ts' hook codex # ${HOOK_MARKER}`);
+    // the OS is pinned: Codex on Windows gets the PowerShell form (see phase4-windows.test.ts)
+    expect(hookCommand("codex", { execPath: "/u/.bun/bin/bun", indexPath: "/r/src/index.ts", os: "linux" })).toBe(`'/u/.bun/bin/bun' '/r/src/index.ts' hook codex # ${HOOK_MARKER}`);
+    expect(hookCommand("codex", { execPath: "/u/.bun/bin/bun", indexPath: "/r/src/index.ts", os: "win32" })).toBe(`& '/u/.bun/bin/bun' '/r/src/index.ts' hook codex # ${HOOK_MARKER}`);
     expect(hookCommand("claude", { execPath: "/it's/phonedesk" })).toContain(`'/it'\\''s/phonedesk'`);
   });
 });
@@ -77,6 +79,7 @@ describe("hookCommand targets the installing agent", () => {
     expect(hookCommand("claude", { execPath: "/bin/phonedesk", port: 7420, home: "/h/.phonedesk", defaultHome: "/h/.phonedesk" })).toBe("'/bin/phonedesk' hook claude # phonedesk hook");
   });
   test("other port and home are carried, quoted", () => {
-    expect(hookCommand("codex", { execPath: "/bin/phonedesk", port: 7460, home: "/tmp/a b", defaultHome: "/h/.phonedesk" })).toBe("'/bin/phonedesk' hook codex --port 7460 --home '/tmp/a b' # phonedesk hook");
+    expect(hookCommand("codex", { execPath: "/bin/phonedesk", port: 7460, home: "/tmp/a b", defaultHome: "/h/.phonedesk", os: "linux" })).toBe("'/bin/phonedesk' hook codex --port 7460 --home '/tmp/a b' # phonedesk hook");
+    expect(hookCommand("codex", { execPath: "/bin/phonedesk", port: 7460, home: "/tmp/a b", defaultHome: "/h/.phonedesk", os: "win32" })).toBe("& '/bin/phonedesk' hook codex --port 7460 --home '/tmp/a b' # phonedesk hook");
   });
 });
