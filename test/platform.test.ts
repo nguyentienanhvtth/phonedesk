@@ -175,7 +175,7 @@ describe("win32 platform adapter (fake helper, fake input, fake credentials)", (
   test("shell and open run through cmd / PowerShell (quoted), bundle: opens a catalog app", async () => {
     const { p, ran, calls } = make({ "apps.list": [{ name: "Calculator", id: "Microsoft.WindowsCalculator_8wekyb3d8bbwe!App" }], "apps.open": true });
     await p.runAction({ type: "shell", command: "echo hi" });
-    expect(ran[0]).toEqual(["cmd", "/c", "echo hi"]);
+    expect(ran[0]).toEqual(["cmd.exe", "/d", "/s", "/c", '"echo hi"']);
     await p.runAction({ type: "open", target: "https://example.com/it's" });
     expect(ran[1]![ran[1]!.length - 1]).toBe("Start-Process -FilePath 'https://example.com/it''s'");
     const apps = await p.apps!.list();
