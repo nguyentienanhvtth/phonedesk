@@ -30,7 +30,7 @@ import type { Stats } from "./stats";
 import type { VolumeChange, VolumeState } from "./actions";
 import type { MicChange, MicState } from "./platform";
 import type { AppVolumeChange, AudioDevice, AudioSession, CpuTempReading } from "./platform/types";
-import { HoldTracker, appVolumeChange, pickDevice } from "./gaming";
+import { HoldTracker, appVolumeChange, mergeSessions, pickDevice } from "./gaming";
 import { readGpu as realReadGpu, type GpuReading } from "./gpu";
 import { AiHub, QUOTA_SOURCE, realAiSources, type AiProviderId, type AiSources } from "./ai";
 import { agyPath } from "./ai/antigravity";
@@ -1026,7 +1026,7 @@ export async function startServer(opts: StartOptions = {}) {
         const denied = guardLocal(server, req);
         if (denied) return denied;
         if (!deps.audioSessions) return json({ supported: false, sessions: [] });
-        try { return json({ supported: true, sessions: await deps.audioSessions() }); } catch (err: any) { return json({ error: err?.message ?? String(err) }, 500); }
+        try { return json({ supported: true, sessions: mergeSessions(await deps.audioSessions()) }); } catch (err: any) { return json({ error: err?.message ?? String(err) }, 500); }
       }
       if (path === "/api/audio/devices" && req.method === "GET") {
         const denied = guardLocal(server, req);

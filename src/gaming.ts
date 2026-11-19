@@ -1,5 +1,6 @@
 import type { Action } from "./config";
-import type { AppVolumeChange, AudioDevice } from "./platform/types";
+import type { AppVolumeChange, AudioDevice, AudioSession } from "./platform/types";
+import { appKey } from "./automation";
 import { t } from "./i18n";
 
 /** Pure helpers for the gaming actions (per-app volume, device switch, held keys). */
@@ -82,3 +83,23 @@ export class HoldTracker<Owner> {
 
 /** A held button lets go by itself after 2 minutes: long enough for push-to-talk, short enough for a lost release. */
 export const HOLD_MAX_MS = 120_000;
+
+/**
+ * One row per program for the volume mixer list: Windows keeps a session per stream and per device (Steam shows up
+ * three times with one pid). The app-volume action already changes every session of the program, so the picker only
+ * needs the name. Level/mute come from an active session when there is one; muted only when every session is.
+ */
+export function mergeSessions(list: AudioSession[]): AudioSession[] {
+  const by = new Map<string, AudioSession[]>();
+  for (const s of list) {
+    const k = appKey(s.app);
+    if (!k) continue;
+    const g = by.get(k);
+    if (g) g.push(s);
+    else by.set(k, [s]);
+  }
+  return [...by.values()].map((g) => {
+    const lead = g.find((s) => s.active) ?? g[0]!;
+    return { pid: lead.pid, app: lead.app, level: lead.level, muted: g.every((s) => s.muted), active: g.some((s) => s.active) };
+  });
+}
