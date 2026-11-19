@@ -342,17 +342,36 @@
 .pd-root .pd-dragging {
   opacity: 0.35;
 }
+/* Resize handle (preview/editor only): on every tile, shown on hover and on the selected tile; big enough to grab
+   with a mouse even when the manage page scales the phone down. */
 .pd-handle {
   position: absolute;
-  right: 3px;
-  bottom: 3px;
-  width: 14px;
-  height: 14px;
-  border-radius: 4px;
+  right: 2px;
+  bottom: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px 2px 6px 2px;
   background: var(--pd-accent);
   box-shadow: 0 0 0 2px var(--pd-bg);
   cursor: nwse-resize;
   touch-action: none;
+  z-index: 3;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.pd-handle::after {
+  content: '';
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--pd-bg);
+  border-bottom: 2px solid var(--pd-bg);
+}
+.pd-tile--edit:hover .pd-handle,
+.pd-sel .pd-handle {
+  opacity: 1;
 }
 .pd-slot {
   border: 1px dashed var(--pd-border-strong);

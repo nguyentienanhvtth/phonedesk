@@ -13,6 +13,7 @@ import { PermissionSheet, ProcessSheet, QuestionSheet } from './sheets'
 import type { QuestionRequest, WeatherData, PushedValue, Notice, GotoReq, HassEntity, HassState, IconAssets, AiData, Item, Layout, Media, MediaCommand, Orientation, Page, Stats, TileStyle } from './types'
 
 export { Icon }
+import { pageMove, pageResize } from '../../shared/reflow'
 import './deck.css'
 
 export interface DeckProps {
@@ -852,6 +853,8 @@ interface Drag {
   tw: number // target span
   th: number
   valid: boolean
+  /** Where the other tiles end up when this drop pushes them aside (cell x/y by id); drawn live while dragging. */
+  place?: { [id: string]: { x: number; y: number } }
 }
 
 const orientOf = (l: Layout | null): Orientation => (l && l.theme && l.theme.orientation) || 'landscape'
@@ -1621,8 +1624,18 @@ export function Deck(props: DeckProps) {
       tw = Math.min(cols - it.px, Math.max(1, Math.round((rx - it.px * step + boxRef.current.gap) / step)))
       th = Math.min(rows - it.py, Math.max(1, Math.round((ry - it.py * step + boxRef.current.gap) / step)))
     }
-    if (valid && overlaps(items, it.id, tx, ty, tw, th)) valid = false
-    return Object.assign({}, d, { rx, ry, tx, ty, tw, th, valid })
+    // Landing on other tiles pushes them aside (the same reflow rules the manage page applies on drop); only a drop
+    // that leaves a pushed tile nowhere to go is refused (red target).
+    let place: Drag['place'] = undefined
+    if (valid && overlaps(items, it.id, tx, ty, tw, th)) {
+      const grid = { id: page.id, columns: cols, rows, items: items.map((o) => ({ id: o.id, x: o.px, y: o.py, w: o.pw, h: o.ph })) }
+      const res = d.kind === 'move' ? pageMove(grid, it.id, tx, ty) : pageResize(grid, it.id, tw, th)
+      if (res.ok) {
+        place = {}
+        for (const o of res.items) if (o.id !== it.id) place[o.id] = { x: o.x || 0, y: o.y || 0 }
+      } else valid = false
+    }
+    return Object.assign({}, d, { rx, ry, tx, ty, tw, th, valid, place })
   }
   const onDown = (e: PointerEvent, page: Page, item: Placed, kind: 'move' | 'resize') => {
     if (!preview || (e.button !== undefined && e.button !== 0)) return
@@ -1781,8 +1794,10 @@ export function Deck(props: DeckProps) {
                   const rows = Math.max(1, (p.rows || 4) | 0)
                   const cell = cellSize(p, box)
                   const step = cell + box.gap
-                  const items = placeItems(p)
                   const dg = drag && drag.pageId === p.id ? drag : null
+                  const placed = placeItems(p)
+                  // while dragging: tiles the drop would push aside are drawn where they would go
+                  const items = dg && dg.moved && dg.valid && dg.place ? placed.map((o) => (dg.place && dg.place[o.id] && o.id !== dg.itemId ? Object.assign({}, o, { px: dg.place[o.id].x, py: dg.place[o.id].y }) : o)) : placed
                   // empty slots (preview only): every cell no tile covers
                   const slots = []
                   if (preview && !pv.clean) {
@@ -1819,7 +1834,7 @@ export function Deck(props: DeckProps) {
                             fx={fx[p.id + '/' + it.id] || ''}
                             selected={preview && pv.selectedId === it.id}
                             dragging={!!dg && dg.itemId === it.id && dg.kind === 'move'}
-                            showHandle={preview && pv.selectedId === it.id}
+                            showHandle={preview}
                             tw={cell * it.pw + box.gap * (it.pw - 1)}
                             th={cell * it.ph + box.gap * (it.ph - 1)}
                             scale={scale}
