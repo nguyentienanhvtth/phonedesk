@@ -142,6 +142,7 @@ export const VI_APP: Record<string, string> = {
   "PhoneDesk checks that Windows lets phone connections and the helper through. Fix anything marked below, then check again.": "PhoneDesk kiểm tra Windows có cho phép kết nối từ điện thoại và trình hỗ trợ hay không. Hãy xử lý mục được đánh dấu bên dưới rồi kiểm tra lại.",
   "Windows may show a SmartScreen warning for a downloaded app: choose More info, then Run anyway. The setup script adds a firewall rule for PhoneDesk on any network profile, limited to your local subnet, so phones on your network can connect.": "Windows có thể hiện cảnh báo SmartScreen cho ứng dụng tải về: chọn Thông tin khác, rồi Vẫn chạy. Script cài đặt thêm một quy tắc tường lửa cho PhoneDesk trên mọi loại mạng, chỉ giới hạn trong mạng con cục bộ của bạn, để điện thoại trong mạng kết nối được.",
   "Open Windows Settings": "Mở Cài đặt Windows",
+  "Open Windows Security": "Mở Bảo mật Windows",
   "E.g. win+shift+s, ctrl+alt+t, f13, num1, printscreen. Ctrl is written as cmd in the layout; use the Win button for Windows-key shortcuts.": "Ví dụ: win+shift+s, ctrl+alt+t, f13, num1, printscreen. Trong layout, Ctrl được ghi là cmd; dùng nút Win cho phím tắt có phím Windows.",
   "Add or remove the Windows key": "Thêm hoặc bỏ phím Windows",
   "The agent did not report a version": "Agent không báo phiên bản",

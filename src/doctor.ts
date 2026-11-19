@@ -241,6 +241,18 @@ export async function runDoctor(p: Probes, ctx: DoctorCtx): Promise<DoctorReport
   return { version: p.version, exe: p.exe, asService: p.asService, platform: p.platform, items };
 }
 
+/**
+ * Settings links the agent may open for a doctor item: only the OS's own settings schemes (macOS System Settings,
+ * Windows Settings, Windows Security). Anything else in a report is never handed to the OS opener.
+ */
+export const OPENABLE_URL = /^(x-apple\.systempreferences:|ms-settings:|windowsdefender:\/\/)[A-Za-z0-9._\-?=&%/:]*$/;
+
+/** The settings link of a report item when it may be opened, else null. */
+export function openableUrl(item: DoctorItem | undefined): string | null {
+  const url = item?.fix?.settingsUrl;
+  return typeof url === "string" && OPENABLE_URL.test(url) ? url : null;
+}
+
 /** Which ids `request()` can ask macOS for. */
 export const REQUESTABLE = ["accessibility", "local-network", ...AUTOMATION_TARGETS.map((x) => x.id)] as const;
 

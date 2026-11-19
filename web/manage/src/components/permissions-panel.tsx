@@ -9,6 +9,7 @@ import { api } from "@/api";
 import { t, useLanguage } from "@/lib/i18n";
 import { usePlatform } from "@/lib/platform";
 import type { DoctorItem, DoctorStatus } from "@/types";
+import { OPENABLE_URL } from "@/lib/doctor";
 
 /** English source text for known check ids; unknown ids show the agent's name or the id itself. */
 const NAMES: Record<string, string> = {
@@ -81,7 +82,9 @@ export function PermissionsPanel({ items, missing, error, reload }: { items: Doc
                 const name = NAMES[i.id] ? t(NAMES[i.id]!) : i.name ?? i.id;
                 const bad = i.status === "missing" || i.status === "denied";
                 // "unknown" Local Network (Home Assistant unreachable) still gets its Request button
-                const actionable = bad || (i.status === "unknown" && i.id === "local-network");
+                // the agent opens only OS settings links (System Settings, Windows Settings / Security): no link, no button
+                const openable = !!i.fix?.settingsUrl && OPENABLE_URL.test(i.fix.settingsUrl);
+                const actionable = bad || (i.status === "unknown" && (i.id === "local-network" || openable));
                 return (
                   <li key={i.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
                     <StatusDot tone={toneOf(i)} pulse={false} label={stateLabel(i)} />
@@ -93,8 +96,8 @@ export function PermissionsPanel({ items, missing, error, reload }: { items: Doc
                     {actionable && (
                       <div className="flex flex-none items-center gap-2">
                         {!win && RESETTABLE.has(i.id) && <Button size="xs" variant="secondary" icon={<Reset />} loading={busy === `reset-${i.id}`} title={t("Clears the old entry (left by an earlier PhoneDesk version) and asks macOS again. Turn phonedesk on when the prompt appears.")} onClick={() => void act(`reset-${i.id}`, () => api.requestDoctor(i.id, true), t("The old entry was cleared and macOS was asked again."))}>{t("Reset and ask again")}</Button>}
-                        {REQUESTABLE.has(i.id) && <Button size="xs" icon={<Shield />} loading={busy === `req-${i.id}`} onClick={() => void act(`req-${i.id}`, () => api.requestDoctor(i.id), t("macOS was asked to show its permission prompt."))}>{t("Request")}</Button>}
-                        {(i.fix?.settingsUrl || !REQUESTABLE.has(i.id)) && <Button size="xs" variant="secondary" icon={<Settings />} loading={busy === `open-${i.id}`} onClick={() => void act(`open-${i.id}`, () => api.openDoctorSettings(i.id))}>{win ? t("Open Windows Settings") : t("Open Settings")}</Button>}
+                        {!win && REQUESTABLE.has(i.id) && <Button size="xs" icon={<Shield />} loading={busy === `req-${i.id}`} onClick={() => void act(`req-${i.id}`, () => api.requestDoctor(i.id), t("macOS was asked to show its permission prompt."))}>{t("Request")}</Button>}
+                        {openable && <Button size="xs" variant="secondary" icon={<Settings />} loading={busy === `open-${i.id}`} onClick={() => void act(`open-${i.id}`, () => api.openDoctorSettings(i.id))}>{win ? (i.fix?.settingsUrl?.startsWith("windowsdefender:") ? t("Open Windows Security") : t("Open Windows Settings")) : t("Open Settings")}</Button>}
                       </div>
                     )}
                   </li>

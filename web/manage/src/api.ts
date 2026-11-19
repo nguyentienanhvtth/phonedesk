@@ -232,10 +232,10 @@ export const api = {
     const raw = rec(await request<unknown>("/api/layout/assets", json("POST", { layout })));
     return rec(raw.assets ?? raw);
   },
-  /** Platform of the agent's machine: GET /api/info {platform}; undefined when the agent does not say. */
+  /** Platform of the agent's machine: GET /api/platform {id, label, keyNames}; undefined when the agent does not say. */
   getPlatform: async (): Promise<Platform | undefined> => {
-    const o = rec(await request<unknown>("/api/info"));
-    return asPlatform(o.platform ?? o.os);
+    const o = rec(await request<unknown>("/api/platform"));
+    return asPlatform(o.id ?? o.platform ?? o.os);
   },
   getAbout: async (): Promise<About> => {
     const o = rec(await request<unknown>("/api/about"));
