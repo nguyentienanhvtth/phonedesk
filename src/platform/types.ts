@@ -5,6 +5,16 @@ import type { NetCounters } from "../stats";
 import type { ProcessInfo, ProcessSort } from "../processes";
 import type { AppInfo } from "../icons";
 
+export interface MicState {
+  level: number;
+  muted: boolean;
+}
+
+export interface MicChange {
+  level?: number;
+  muted?: boolean;
+}
+
 /** Keys and typing, OS actions: the operations that differ per OS. */
 export interface Platform {
   readonly id: NodeJS.Platform;
@@ -18,6 +28,11 @@ export interface Platform {
 
   readVolume(): Promise<VolumeState | null>;
   setVolume(v: VolumeChange): Promise<void>;
+
+  /** Microphone state (default capture device). Null when unavailable. */
+  readMic?(): Promise<MicState | null>;
+  /** Set microphone level (0-100) or mute state. */
+  setMic?(v: MicChange): Promise<void>;
 
   readMedia(): Promise<RawMedia | null>;
   fetchArtwork(raw: RawMedia): Promise<string | undefined>;

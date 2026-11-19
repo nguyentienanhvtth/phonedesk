@@ -40,8 +40,8 @@ export type SoundTarget = "mac" | "phone" | "both";
 export type SoundMode = "overlap" | "restart" | "toggle";
 export const SOUND_ID_RE = /^snd:[a-f0-9]{16}$/;
 
-/** nowplaying = current track + transport + volume (agent sends {type:"media"}); network = rx/tx rates. */
-export type WidgetKind = "clock" | "cpu" | "memory" | "uptime" | "load" | "network" | "nowplaying" | "quota" | "sessions" | "entity" | "weather" | "value" | "notifications";
+/** nowplaying = current track + transport + volume (agent sends {type:"media"}); network = rx/tx rates; gpu = NVIDIA GPU stats via nvidia-smi. */
+export type WidgetKind = "clock" | "cpu" | "memory" | "uptime" | "load" | "network" | "nowplaying" | "quota" | "sessions" | "entity" | "weather" | "value" | "notifications" | "gpu";
 
 /** AI coding tools PhoneDesk reads quotas/sessions from. A "quota" widget shows one provider (item.provider). */
 export type AiProvider = "claude" | "codex" | "antigravity" | "opencode" | "grok";
@@ -95,13 +95,14 @@ export interface QuotaOptions {
  */
 export type MetricChart = "sparkline" | "area" | "bars" | "gauge" | "ring" | "bar" | "number" | "donut";
 export const METRIC_CHARTS: MetricChart[] = ["sparkline", "area", "bars", "gauge", "ring", "bar", "number", "donut"];
-export const METRIC_WIDGETS = ["cpu", "memory", "network", "load"] as const;
+export const METRIC_WIDGETS = ["cpu", "memory", "network", "load", "gpu"] as const;
 /** Charts that need a 0-100 scale are not offered for network/load (they have no fixed maximum). */
 export const METRIC_CHARTS_FOR: Record<(typeof METRIC_WIDGETS)[number], MetricChart[]> = {
   cpu: ["sparkline", "area", "bars", "gauge", "ring", "bar", "number"],
   memory: ["sparkline", "area", "bars", "gauge", "ring", "bar", "number", "donut"],
   network: ["sparkline", "area", "bars", "number"],
   load: ["sparkline", "area", "bars", "number"],
+  gpu: ["sparkline", "area", "bars", "gauge", "ring", "bar", "number"],
 };
 export const METRIC_WINDOWS = [60, 300, 900] as const; // seconds of history: 1, 5, 15 min
 
@@ -196,7 +197,7 @@ const LAYOUT_FILE = join(HOME, "layout.json");
 const DEVICES_FILE = join(HOME, "devices.json");
 
 export const ACTION_TYPES = ["open", "hotkey", "type", "shell", "media", "volume", "page", "sound", "sound-stop", "hass", "macro"] as const;
-export const WIDGET_KINDS: WidgetKind[] = ["clock", "cpu", "memory", "uptime", "load", "network", "nowplaying", "quota", "sessions", "entity", "weather", "value", "notifications"];
+export const WIDGET_KINDS: WidgetKind[] = ["clock", "cpu", "memory", "uptime", "load", "network", "nowplaying", "quota", "sessions", "entity", "weather", "value", "notifications", "gpu"];
 
 export function defaultLayout(): Layout {
   return {
