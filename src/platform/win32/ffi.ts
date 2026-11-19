@@ -27,7 +27,7 @@ function load(): Win | null {
         GetProcessWindowStation: { args: [], returns: T.ptr },
         GetUserObjectInformationW: { args: [T.ptr, T.i32, T.ptr, T.u32, T.ptr], returns: T.bool },
       }).symbols,
-      kernel32: ffi.dlopen("kernel32.dll", { GetTickCount: { args: [], returns: T.u32 } }).symbols,
+      kernel32: ffi.dlopen("kernel32.dll", { GetTickCount: { args: [], returns: T.u32 }, GetConsoleWindow: { args: [], returns: T.ptr } }).symbols,
       advapi32: ffi.dlopen("advapi32.dll", {
         CredReadW: { args: [T.ptr, T.u32, T.u32, T.ptr], returns: T.bool },
         CredWriteW: { args: [T.ptr, T.u32], returns: T.bool },
@@ -46,6 +46,16 @@ const need = (): Win => {
   if (!w) throw new Error("the Windows API is not available");
   return w;
 };
+
+/**
+ * Whether this process has a console (visible or hidden). GetConsoleWindow returns the console's window even when it
+ * is hidden (the logon task starts us in a hidden console) and NULL only when there is none at all. null = cannot tell.
+ */
+export function hasConsole(): boolean | null {
+  const w = load();
+  if (!w) return null;
+  try { return !!w.kernel32.GetConsoleWindow(); } catch { return null; }
+}
 
 export function sendInput(events: KeyEvent[]): void {
   if (!events.length) return;
