@@ -3,7 +3,7 @@
 // Bump a template's `rev` when you change it so the manage page can offer to re-apply it.
 
 /** Structural layout shape (the agent validates it with validateLayout, the manage page types it as Layout). */
-export interface PresetLayout { version: 1; theme?: Record<string, unknown>; pages: { id: string; name: string; columns: number; rows: number; items: Record<string, unknown>[] }[] }
+export interface PresetLayout { version: 1; theme?: Record<string, unknown>; pages: { id: string; name: string; columns: number; rows: number; items: Record<string, unknown>[] }[]; rules?: Record<string, unknown>[] }
 
 export interface LayoutPresetDef {
   id: string;
@@ -54,7 +54,8 @@ export function gamingPcLayout(): PresetLayout {
           { id: "w-cpu2", kind: "widget", widget: "cpu", color: "#3b82f6", x: 4, y: 0, w: 2, h: 2 },
           { id: "w-mem2", kind: "widget", widget: "memory", color: "#8b5cf6", x: 6, y: 0, w: 2, h: 2 },
           { id: "w-net", kind: "widget", widget: "network", color: "#f59e0b", x: 0, y: 2, w: 2 },
-          { id: "w-load", kind: "widget", widget: "load", color: "#ec4899", x: 2, y: 2, w: 2 },
+          // Windows has no load average: the CPU temperature (LibreHardwareMonitor / ACPI) takes that slot
+          { id: "w-cputemp", kind: "widget", widget: "cputemp", color: "#ec4899", x: 2, y: 2, w: 2 },
           { id: "w-clock", kind: "widget", widget: "clock", clock: { style: "digital" }, x: 4, y: 2, w: 2 },
           { id: "b-gaming", kind: "button", label: "Gaming", icon: "device-gamepad-2", color: "#f97316", x: 6, y: 2, action: { type: "page", page: "gaming" } },
           { id: "b-keys2", kind: "button", label: "Keys", icon: "keyboard", color: "#6366f1", x: 7, y: 2, action: { type: "page", page: "keys" } },
@@ -92,6 +93,10 @@ export function gamingPcLayout(): PresetLayout {
           { id: "b-stats2", kind: "button", label: "Stats", icon: "chart-line", color: "#0ea5e9", x: 7, y: 2, action: { type: "page", page: "stats" } },
         ],
       },
+    ],
+    // An example app rule, off by default so nothing jumps around until you turn it on in Automation.
+    rules: [
+      { id: "rule-cs2", name: "CS2 running → Controls", enabled: false, when: { kind: "app-running", app: "cs2.exe" }, then: [{ kind: "goto-page", pageId: "gaming", countdown: 0 }], revert: true },
     ],
   };
 }
@@ -139,6 +144,6 @@ export function basicMediaLayout(): PresetLayout {
 }
 
 export const LAYOUT_PRESETS: LayoutPresetDef[] = [
-  { id: "gaming-pc", name: "Gaming PC", hint: "CS2, Steam, Discord, Spotify, GPU/CPU stats, volume/mic sliders", platform: "win32", rev: 3, layout: gamingPcLayout },
+  { id: "gaming-pc", name: "Gaming PC", hint: "CS2, Steam, Discord, Spotify, GPU/CPU stats, volume/mic sliders", platform: "win32", rev: 4, layout: gamingPcLayout },
   { id: "basic-media", name: "Media Remote", hint: "Now playing, volume controls, system stats", platform: "all", rev: 1, layout: basicMediaLayout },
 ];

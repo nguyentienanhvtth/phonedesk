@@ -1,20 +1,22 @@
 // Wire types shared with the agent (mirrors src/config.ts; kept local so web/deck builds on its own).
 export type Action =
   | { type: 'open'; target: string }
-  | { type: 'hotkey'; keys: string }
+  | { type: 'hotkey'; keys: string; hold?: boolean }
   | { type: 'type'; text: string }
   | { type: 'shell'; command: string }
   | { type: 'media'; command: 'playpause' | 'next' | 'previous' }
   | { type: 'volume'; command: 'up' | 'down' | 'mute' }
   | { type: 'set-volume'; level: number; device?: 'output' | 'mic' }
   | { type: 'mic'; command: 'mute' | 'unmute' | 'toggle' }
+  | { type: 'app-volume'; app: string; command: 'set' | 'up' | 'down' | 'mute' | 'unmute' | 'toggle-mute'; level?: number; step?: number }
+  | { type: 'output-device'; devices: string[]; flow?: 'output' | 'input' }
   | { type: 'page'; page: string }
   | { type: 'sound'; sound: string; on?: 'mac' | 'phone' | 'both'; volume?: number; mode?: 'overlap' | 'restart' | 'toggle' }
   | { type: 'sound-stop' }
   | { type: 'macro'; steps: { kind: string; [k: string]: unknown }[] }
   | { type: 'hass'; service: string; entityId?: string; data?: { [k: string]: unknown } }
 
-export type WidgetKind = 'clock' | 'cpu' | 'memory' | 'uptime' | 'load' | 'network' | 'nowplaying' | 'quota' | 'sessions' | 'entity' | 'weather' | 'value' | 'notifications' | 'gpu' | 'volume' | 'mic'
+export type WidgetKind = 'clock' | 'cpu' | 'memory' | 'uptime' | 'load' | 'network' | 'nowplaying' | 'quota' | 'sessions' | 'entity' | 'weather' | 'value' | 'notifications' | 'gpu' | 'volume' | 'mic' | 'cputemp'
 
 export type ClockStyle = 'digital' | 'flip' | 'analog' | 'minimal' | 'word' | 'world'
 export interface ClockOptions {
@@ -188,6 +190,8 @@ export interface Stats {
   volume?: { level: number; muted: boolean } | null
   mic?: { level: number; muted: boolean } | null
   gpu?: { name: string; loadPercent: number; tempC: number; memUsedMB: number; memTotalMB: number; powerW?: number; clockMHz?: number; memClockMHz?: number } | null
+  /** CPU temperature (°C) and where it came from; celsius null = no sensor this computer can read */
+  cpuTemp?: { celsius: number | null; source: string; sensor?: string }
 }
 
 export type MediaCommand = 'playpause' | 'next' | 'previous' | 'resume' | 'open'
