@@ -1347,7 +1347,6 @@ export function Deck(props: DeckProps) {
       mode = 0
       if (was !== 1) return
       swiped.current = Date.now()
-      const w = s.clientWidth
       let i = startI
       if (dx < -40 || (dx < -15 && v < -0.4)) i = Math.min(pagesRef.current.length - 1, i + 1)
       else if (dx > 40 || (dx > 15 && v > 0.4)) i = Math.max(0, i - 1)

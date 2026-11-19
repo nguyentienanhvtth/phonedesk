@@ -70,4 +70,15 @@ export const VI_GAMING: Record<string, string> = {
   "Play a clip from the Sounds tab": "Phát một clip trong tab Âm thanh",
   "Show another screen on the phone": "Hiện màn hình khác trên điện thoại",
   "No sound clip selected.": "Chưa chọn clip âm thanh.",
+
+  // phase 4: platform wording
+  "e.g. notepad or start ms-settings:": "vd. notepad hoặc start ms-settings:",
+  "https://... or an app name (Notepad)": "https://… hoặc tên app (Notepad)",
+  "e.g. xdg-open .": "vd. xdg-open .",
+  "https://... or an app name (firefox)": "https://… hoặc tên app (firefox)",
+  "Quota Claude": "Hạn mức Claude",
+  "Quota Codex": "Hạn mức Codex",
+  "Quota Antigravity": "Hạn mức Antigravity",
+  "Quota OpenCode": "Hạn mức OpenCode",
+  "Quota Grok": "Hạn mức Grok",
 };
