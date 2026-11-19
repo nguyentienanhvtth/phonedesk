@@ -72,6 +72,9 @@ export const STATIC_ENTRIES: PaletteEntry[] = [
   { key: "v-up", group: "media", label: "Volume up", icon: "volume-high", size: [1, 1], make: () => button(t("Volume up"), "volume-high", { type: "volume", command: "up" }) },
   { key: "v-down", group: "media", label: "Volume down", icon: "volume-low", size: [1, 1], make: () => button(t("Volume down"), "volume-low", { type: "volume", command: "down" }) },
 
+  { key: "m-mic", group: "media", label: "Microphone on / off", icon: "microphone", size: [1, 1], tags: "mic microphone mute unmute toggle", make: () => button(t("Mic"), "microphone", { type: "mic", command: "toggle" }) },
+  { key: "v-set", group: "media", label: "Set volume to 50%", icon: "adjustments-horizontal", size: [1, 1], tags: "volume level percent set", make: () => button(t("Volume 50%"), "adjustments-horizontal", { type: "set-volume", level: 50 }) },
+
   { key: "sound-stop", group: "sound", label: "Stop all sounds", icon: "player-stop", size: [1, 1], tags: "stop sound", make: () => button(t("Stop sound"), "player-stop", { type: "sound-stop" }) },
 
   { key: "a-weather", group: "widget", path: ["Time"], label: "Weather", hint: "Now, hourly, 7 days", icon: "sun", size: [2, 2], tags: "weather rain sun temperature", make: () => widget("weather", { weather: { source: "auto" } }) },
@@ -86,6 +89,17 @@ export const STATIC_ENTRIES: PaletteEntry[] = [
   { key: "k-shot", group: "keys", path: ["System"], label: "Capture region", icon: "camera", size: [1, 1], tags: "screenshot capture", make: () => button(t("Capture region"), "camera", { type: "hotkey", keys: "cmd+shift+4" }) },
   { key: "k-lock", group: "keys", path: ["System"], label: "Lock Mac", icon: "lock", size: [1, 1], tags: "lock cmd+ctrl+q lock screen", make: () => button(t("Lock Mac"), "lock", { type: "hotkey", keys: "ctrl+cmd+q" }) },
   { key: "k-spot", group: "keys", path: ["System"], label: "Spotlight", icon: "search", size: [1, 1], tags: "spotlight search cmd+space", make: () => button("Spotlight", "search", { type: "hotkey", keys: "cmd+space" }) },
+  // Windows: real Windows-key shortcuts (shown on Windows only, see WIN_ONLY_ENTRIES)
+  { key: "w-shot", group: "keys", path: ["Windows"], label: "Snipping Tool", hint: "Win+Shift+S", icon: "camera", size: [1, 1], tags: "screenshot snip capture win+shift+s", make: () => button(t("Screenshot"), "camera", { type: "hotkey", keys: "win+shift+s" }) },
+  { key: "w-lock", group: "keys", path: ["Windows"], label: "Lock PC", hint: "LockWorkStation", icon: "lock", size: [1, 1], tags: "lock screen win+l", make: () => button(t("Lock"), "lock", { type: "shell", command: "rundll32.exe user32.dll,LockWorkStation" }) },
+  { key: "w-search", group: "keys", path: ["Windows"], label: "Windows Search", hint: "Win+S", icon: "search", size: [1, 1], tags: "search start win+s", make: () => button(t("Search"), "search", { type: "hotkey", keys: "win+s" }) },
+  { key: "w-taskview", group: "keys", path: ["Windows"], label: "Task View", hint: "Win+Tab", icon: "layout-grid", size: [1, 1], tags: "task view windows win+tab", make: () => button(t("Task View"), "layout-grid", { type: "hotkey", keys: "win+tab" }) },
+  { key: "w-desktop", group: "keys", path: ["Windows"], label: "Show desktop", hint: "Win+D", icon: "device-desktop", size: [1, 1], tags: "desktop minimize win+d", make: () => button(t("Desktop"), "device-desktop", { type: "hotkey", keys: "win+d" }) },
+  { key: "w-clipboard", group: "keys", path: ["Windows"], label: "Clipboard history", hint: "Win+V", icon: "clipboard-paste", size: [1, 1], tags: "clipboard history win+v", make: () => button(t("Clipboard"), "clipboard-paste", { type: "hotkey", keys: "win+v" }) },
+  { key: "w-taskmgr", group: "keys", path: ["Windows"], label: "Task Manager", hint: "Ctrl+Shift+Esc", icon: "activity", size: [1, 1], tags: "task manager processes ctrl+shift+esc", make: () => button(t("Task Manager"), "activity", { type: "hotkey", keys: "ctrl+shift+escape" }) },
+  { key: "w-gamebar", group: "keys", path: ["Gaming"], label: "Xbox Game Bar", hint: "Win+G", icon: "device-gamepad-2", size: [1, 1], tags: "game bar xbox overlay win+g", make: () => button(t("Game Bar"), "device-gamepad-2", { type: "hotkey", keys: "win+g" }) },
+  { key: "w-record", group: "keys", path: ["Gaming"], label: "Clip the last 30 s", hint: "Win+Alt+G", icon: "video", size: [1, 1], tags: "record clip capture game bar win+alt+g", make: () => button(t("Clip 30s"), "video", { type: "hotkey", keys: "win+alt+g" }) },
+
   { key: "k-custom", group: "keys", path: ["Custom"], label: "Custom shortcut", icon: "keyboard", size: [1, 1], tags: "hotkey", make: () => button(t("Shortcut"), "keyboard", { type: "hotkey", keys: "" }) },
   { key: "k-type", group: "keys", path: ["Custom"], label: "Type text", icon: "text", size: [1, 1], tags: "type text", make: () => button(t("Type text"), "text", { type: "type", text: "" }) },
 

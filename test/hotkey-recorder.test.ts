@@ -38,3 +38,25 @@ describe("manage key recorder", () => {
     expect(hotkeyLabels("printscreen", "win32")).toEqual(["PrtSc"]);
   });
 });
+
+describe("palette: Windows entries", async () => {
+  const { STATIC_ENTRIES } = await import("../web/manage/src/lib/palette");
+  const { entryForPlatform, WIN_ONLY_ENTRIES, MAC_ONLY_ENTRIES } = await import("../web/manage/src/lib/platform");
+  const { parseHotkey } = await import("../src/platform/hotkey");
+  const { validateLayout } = await import("../src/config");
+  const keysOf = (p: "win32" | "darwin" | "linux") => STATIC_ENTRIES.filter((e) => entryForPlatform(e.key, p)).map((e) => e.key);
+
+  test("Windows gets the Win-key shortcuts and the mic, not the macOS ones; macOS the reverse", () => {
+    const win = keysOf("win32"), mac = keysOf("darwin"), linux = keysOf("linux");
+    for (const k of ["w-shot", "w-lock", "w-gamebar", "w-record", "w-taskmgr", "m-mic"]) { expect(win).toContain(k); expect(mac).not.toContain(k); expect(linux).not.toContain(k); }
+    for (const k of MAC_ONLY_ENTRIES) { expect(mac).toContain(k); expect(win).not.toContain(k); }
+    expect(win).toContain("v-set");
+    expect(mac).toContain("v-set");
+  });
+  test("every Windows entry makes a valid button whose hotkey parses", () => {
+    const items = STATIC_ENTRIES.filter((e) => WIN_ONLY_ENTRIES.has(e.key) || e.key === "v-set").map((e, i) => ({ ...(e.make() as any), id: `x${i}`, x: i % 8, y: Math.floor(i / 8) }));
+    expect(items.length).toBe(WIN_ONLY_ENTRIES.size + 1);
+    expect(() => validateLayout({ version: 1, pages: [{ id: "p", name: "P", columns: 8, rows: 4, items }] })).not.toThrow();
+    for (const it of items) if (it.action.type === "hotkey") expect(() => parseHotkey(it.action.keys)).not.toThrow();
+  });
+});

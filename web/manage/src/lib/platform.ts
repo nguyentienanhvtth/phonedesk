@@ -74,4 +74,8 @@ export function hotkeyText(keys: string, platform: Platform = getPlatform()): st
 /** Hotkeys that exist only on macOS (palette entries are hidden elsewhere). */
 export const MAC_ONLY_ENTRIES = new Set(["k-lock", "k-spot", "k-shot"]);
 /** Windows-only palette entries (Windows key shortcuts, Game Bar, lock): hidden on macOS and Linux. */
-export const WIN_ONLY_ENTRIES = new Set(["w-lock", "w-search", "w-shot", "w-gamebar", "w-record", "w-taskmgr", "w-taskview", "w-desktop", "w-clipboard"]);
+export const WIN_ONLY_ENTRIES = new Set(["w-lock", "w-search", "w-shot", "w-gamebar", "w-record", "w-taskmgr", "w-taskview", "w-desktop", "w-clipboard", "m-mic"]);
+
+/** Whether a static palette entry is offered for the agent's OS. */
+export const entryForPlatform = (key: string, platform: Platform): boolean =>
+  platform === "darwin" ? !WIN_ONLY_ENTRIES.has(key) : platform === "win32" ? !MAC_ONLY_ENTRIES.has(key) : !MAC_ONLY_ENTRIES.has(key) && !WIN_ONLY_ENTRIES.has(key);

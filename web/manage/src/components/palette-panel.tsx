@@ -9,7 +9,7 @@ import { ItemIcon } from "@/components/icon";
 import { useLanguage, t } from "@/lib/i18n";
 import { GROUP_LABEL, STATIC_ENTRIES, entryLabel, appEntry, entityEntry, soundEntry, type PaletteEntry, type PaletteGroup } from "@/lib/palette";
 import { buildTree, highlight, matches, norm, type TreeNode } from "@/lib/palette-tree";
-import { MAC_ONLY_ENTRIES, usePlatform } from "@/lib/platform";
+import { entryForPlatform, usePlatform } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 
 const ORDER: PaletteGroup[] = ["widget", "home", "app", "keys", "media", "sound", "system"];
@@ -62,7 +62,7 @@ export function PalettePanel({ onDragMove, onDragEnd, onAdd }: PaletteHandlers) 
   const searching = nq.length > 0;
 
   const platform = usePlatform();
-  const entries = useMemo(() => [...STATIC_ENTRIES.filter((e) => platform === "darwin" || !MAC_ONLY_ENTRIES.has(e.key)), ...(sounds ?? []).map(soundEntry), ...(hass ?? []).map(entityEntry), ...(apps ?? []).map(appEntry)], [apps, sounds, hass, platform]);
+  const entries = useMemo(() => [...STATIC_ENTRIES.filter((e) => entryForPlatform(e.key, platform)), ...(sounds ?? []).map(soundEntry), ...(hass ?? []).map(entityEntry), ...(apps ?? []).map(appEntry)], [apps, sounds, hass, platform]);
   const hiddenUnavailable = useMemo(() => entries.filter((e) => e.unavailable).length, [entries]);
   const trees = useMemo(
     () => ORDER.map((g) => buildTree(g, t(GROUP_LABEL[g]), entries.filter((e) => e.group === g && (showUnavailable || !e.unavailable) && matches(e, nq, t(GROUP_LABEL[g]))))),
