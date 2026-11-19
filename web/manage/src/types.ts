@@ -6,12 +6,15 @@ export type Action =
   | { type: "shell"; command: string }
   | { type: "media"; command: "playpause" | "next" | "previous" }
   | { type: "volume"; command: "up" | "down" | "mute" }
+  | { type: "set-volume"; level: number; device?: "output" | "mic" }
+  | { type: "mic"; command: MicCommand }
   | { type: "page"; page: string }
   | { type: "sound"; sound: string; on?: SoundTarget; volume?: number; mode?: SoundMode }
   | { type: "sound-stop" }
   | { type: "hass"; service: string; entityId?: string; data?: Record<string, unknown> }
   | { type: "macro"; steps: MacroStep[] };
 
+export type MicCommand = "mute" | "unmute" | "toggle";
 export type SoundTarget = "mac" | "phone" | "both";
 export type SoundMode = "overlap" | "restart" | "toggle";
 /** An uploaded clip. `id` is the value stored in actions (`snd:<16hex>`). */
@@ -24,7 +27,7 @@ export interface Sound {
 }
 
 export type ActionType = Action["type"];
-export const ACTION_TYPES: ActionType[] = ["open", "hotkey", "type", "shell", "media", "volume", "page", "sound", "sound-stop", "hass", "macro"];
+export const ACTION_TYPES: ActionType[] = ["open", "hotkey", "type", "shell", "media", "volume", "set-volume", "mic", "page", "sound", "sound-stop", "hass", "macro"];
 
 export type AiProvider = "claude" | "codex" | "antigravity" | "opencode" | "grok";
 export const AI_PROVIDERS: AiProvider[] = ["claude", "codex", "antigravity", "opencode", "grok"];

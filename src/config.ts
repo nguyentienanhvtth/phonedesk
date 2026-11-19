@@ -12,6 +12,10 @@ export type Action =
   | { type: "shell"; command: string }
   | { type: "media"; command: "playpause" | "next" | "previous" }
   | { type: "volume"; command: "up" | "down" | "mute" }
+  /** Absolute level 0-100 of the output (speakers) or the default microphone. */
+  | { type: "set-volume"; level: number; device?: VolumeDevice }
+  /** Default microphone: mute, unmute or toggle. */
+  | { type: "mic"; command: MicCommand }
   | { type: "page"; page: string }
   /** Soundboard: play an uploaded clip (~/.phonedesk/sounds/<id>.<ext>) on the Mac (afplay), the phone, or both. */
   | { type: "sound"; sound: string; on?: SoundTarget; volume?: number; mode?: SoundMode }
@@ -37,6 +41,9 @@ export interface EntityOptions {
 }
 
 export type SoundTarget = "mac" | "phone" | "both";
+export type VolumeDevice = "output" | "mic";
+export type MicCommand = "mute" | "unmute" | "toggle";
+export const MIC_COMMANDS: MicCommand[] = ["mute", "unmute", "toggle"];
 export type SoundMode = "overlap" | "restart" | "toggle";
 export const SOUND_ID_RE = /^snd:[a-f0-9]{16}$/;
 
@@ -197,7 +204,7 @@ export const HOME = process.env.PHONEDESK_HOME ?? join(homedir(), ".phonedesk");
 const LAYOUT_FILE = join(HOME, "layout.json");
 const DEVICES_FILE = join(HOME, "devices.json");
 
-export const ACTION_TYPES = ["open", "hotkey", "type", "shell", "media", "volume", "page", "sound", "sound-stop", "hass", "macro"] as const;
+export const ACTION_TYPES = ["open", "hotkey", "type", "shell", "media", "volume", "set-volume", "mic", "page", "sound", "sound-stop", "hass", "macro"] as const;
 export const WIDGET_KINDS: WidgetKind[] = ["clock", "cpu", "memory", "uptime", "load", "network", "nowplaying", "quota", "sessions", "entity", "weather", "value", "notifications", "gpu", "volume", "mic"];
 
 export function defaultLayout(): Layout {
@@ -596,6 +603,15 @@ function validateAction(a: any, where: string): Action {
     case "volume":
       if (!["up", "down", "mute"].includes(a.command)) throw new Error(`${where}.action.command is invalid`);
       return { type: "volume", command: a.command };
+    case "set-volume": {
+      const level = a.level;
+      if (typeof level !== "number" || !Number.isInteger(level) || level < 0 || level > 100) throw new Error(`${where}.action.level must be an integer 0-100`);
+      if (a.device !== undefined && a.device !== "output" && a.device !== "mic") throw new Error(`${where}.action.device must be output or mic`);
+      return { type: "set-volume", level, ...(a.device === "mic" ? { device: "mic" as const } : {}) };
+    }
+    case "mic":
+      if (!MIC_COMMANDS.includes(a.command)) throw new Error(`${where}.action.command must be mute, unmute or toggle`);
+      return { type: "mic", command: a.command };
     default:
       throw new Error(`${where}.action.type "${a.type}" is not supported`);
   }

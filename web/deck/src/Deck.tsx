@@ -401,6 +401,9 @@ function SoundRing(props: { w: number; h: number; r: number; color: string; at: 
   )
 }
 
+/** The crossed-out microphone while muted (only for the plain microphone glyphs; a custom icon is kept). */
+const micIcon = (icon: string, muted: boolean): string => (muted && (icon === 'microphone' || icon === 'microphone-2') ? 'microphone-off' : !muted && icon === 'microphone-off' ? 'microphone' : icon)
+
 function Tile(props: {
   page: Page
   item: Placed
@@ -445,6 +448,10 @@ function Tile(props: {
     gridRow: item.py + 1 + ' / span ' + item.ph,
   }
   let cls = 'pd-tile' + (props.selected ? ' pd-sel' : '') + (props.dragging ? ' pd-dragging' : '') + (props.preview ? ' pd-tile--edit' : '')
+  // a microphone button shows the live mute state (stats.mic): a red ring and the crossed-out microphone
+  const isMicBtn = item.kind === 'button' && !!item.action && item.action.type === 'mic'
+  const micMuted = isMicBtn && !!stats && !!stats.mic && stats.mic.muted
+  if (micMuted) cls += ' pd-tile--muted'
 
   // colour: tint (soft fill + coloured border/icon) | solid (full fill) | outline (border + icon). rgba is computed
   // here because Safari 12 has no color-mix().
@@ -588,7 +595,7 @@ function Tile(props: {
     )
   }
   if (sty === 'ios') {
-    const ic = item.icon || ''
+    const ic = (isMicBtn ? micIcon(item.icon || '', micMuted) : item.icon || '')
     const hasLabel = showLabel && !!item.label
     const lsz = Math.max(10, Math.min(13, fit((item.label || '').length, props.tw - 6, 12 * props.scale, 10)))
     // reserve the room of the biggest label size, so the icon square is the same on every tile; only the label text shrinks
@@ -634,7 +641,7 @@ function Tile(props: {
       </button>
     )
   }
-  const icon = item.icon || ''
+  const icon = (isMicBtn ? micIcon(item.icon || '', micMuted) : item.icon || '')
   const noLabel = !showLabel || !item.label
   const base = Math.min(props.th * (noLabel ? 0.5 : 0.38), props.tw * (noLabel ? 0.55 : 0.42))
   const isz = Math.round(Math.max(16, Math.min(64, base)) * props.tt.iconScale * Math.min(1.3, props.scale))

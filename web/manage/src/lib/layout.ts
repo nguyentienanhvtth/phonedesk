@@ -31,6 +31,8 @@ export function defaultAction(type: ActionType, firstPage = ""): Action {
     case "shell": return { type, command: "" };
     case "media": return { type, command: "playpause" };
     case "volume": return { type, command: "up" };
+    case "set-volume": return { type, level: 50 };
+    case "mic": return { type, command: "toggle" };
     case "page": return { type, page: firstPage };
     case "sound": return { type, sound: "", on: "mac", volume: 100, mode: "restart" };
     case "sound-stop": return { type };
@@ -240,6 +242,8 @@ export const ACTION_LABEL: Record<ActionType, string> = {
   shell: "Shell command",
   media: "Play music",
   volume: "Volume",
+  "set-volume": "Set volume level",
+  mic: "Microphone",
   page: "Switch screen",
   sound: "Play sound",
   hass: "Home Assistant",
@@ -249,14 +253,15 @@ export const ACTION_LABEL: Record<ActionType, string> = {
 
 export const MEDIA_LABEL: Record<string, string> = { playpause: "Play / Pause", next: "Next track", previous: "Previous track" };
 export const VOLUME_LABEL: Record<string, string> = { up: "Increase", down: "Decrease", mute: "Mute" };
+export const MIC_LABEL: Record<string, string> = { toggle: "Toggle mute", mute: "Mute", unmute: "Unmute" };
 
 export const ACTION_ICON: Record<ActionType, string> = {
   open: "external-link", hotkey: "keyboard", type: "type", shell: "square-terminal",
-  media: "play", volume: "volume-2", page: "layout-grid", sound: "music", "sound-stop": "player-stop", hass: "home", macro: "bolt",
+  media: "play", volume: "volume-2", "set-volume": "adjustments-horizontal", mic: "microphone", page: "layout-grid", sound: "music", "sound-stop": "player-stop", hass: "home", macro: "bolt",
 };
 
 export const ACTION_SHORT: Record<ActionType, string> = {
-  open: "Open", hotkey: "Hotkey", type: "Type", shell: "Command", media: "Music", volume: "Volume", page: "Screen", sound: "Sound", "sound-stop": "Stop sound", hass: "Home", macro: "Macro",
+  open: "Open", hotkey: "Hotkey", type: "Type", shell: "Command", media: "Music", volume: "Volume", "set-volume": "Set level", mic: "Mic", page: "Screen", sound: "Sound", "sound-stop": "Stop sound", hass: "Home", macro: "Macro",
 };
 
 /** One-line summary of what a button does, for the item list. */
@@ -269,6 +274,8 @@ export function actionSummary(a: Action | undefined): string {
     case "shell": return t("Command: {command}", { command: a.command || "…" });
     case "media": return t(MEDIA_LABEL[a.command] ?? a.command);
     case "volume": return t("Volume: {mode}", { mode: t(VOLUME_LABEL[a.command] ?? a.command).toLowerCase() });
+    case "set-volume": return a.device === "mic" ? t("Microphone level {n}%", { n: a.level }) : t("Volume level {n}%", { n: a.level });
+    case "mic": return t("Microphone: {mode}", { mode: t(MIC_LABEL[a.command] ?? a.command).toLowerCase() });
     case "page": return t("Go to screen {page}", { page: a.page || "…" });
     case "sound": return a.sound ? t("Play sound") : t("Play sound (no clip selected)");
     case "sound-stop": return t("Stop all sounds");

@@ -286,6 +286,25 @@ export async function startServer(opts: StartOptions = {}) {
       case "hass":
         if (!hass.connected()) throw new Error(t("Home Assistant is not connected"));
         return hass.callService(action.service, action.entityId, action.data);
+      case "set-volume":
+        if (action.device === "mic") {
+          if (!deps.setMic) throw new Error(t("Microphone control is not available on this computer"));
+          await deps.setMic({ level: action.level });
+        } else await deps.setVolume({ level: action.level });
+        refreshSoon("volume");
+        return;
+      case "mic": {
+        if (!deps.setMic) throw new Error(t("Microphone control is not available on this computer"));
+        let muted = action.command === "mute";
+        if (action.command === "toggle") {
+          const now = await deps.readMic?.().catch(() => null);
+          if (!now) throw new Error(t("Cannot read the microphone state"));
+          muted = !now.muted;
+        }
+        await deps.setMic({ muted });
+        refreshSoon("volume");
+        return;
+      }
       default: return deps.runAction(action);
     }
   }

@@ -18,7 +18,7 @@ import { HotkeyField } from "@/components/hotkey-field";
 import { MacroEditor } from "@/components/macro-editor";
 import { IconPicker } from "@/components/icon-picker";
 import {
-  ACTION_ICON, ACTION_SHORT, MEDIA_LABEL, PROVIDER_LABEL, VOLUME_LABEL, WIDGET_LABEL, defaultAction,
+  ACTION_ICON, ACTION_SHORT, MEDIA_LABEL, MIC_LABEL, PROVIDER_LABEL, VOLUME_LABEL, WIDGET_LABEL, defaultAction,
 } from "@/lib/layout";
 import { cn } from "@/lib/utils";
 import { t, useLanguage } from "@/lib/i18n";
@@ -240,6 +240,27 @@ function ActionFields({ action, pages, onChange, onPickApp }: { action: Action |
               { value: "up", label: t("Up") },
             ]} />
           <span className="text-xs text-muted-foreground">{t(VOLUME_LABEL[a.command])}</span>
+        </Field>
+      )}
+      {a?.type === "set-volume" && (
+        <>
+          <Field label={t("Device")} id="f-setvol-dev">
+            <SegmentedControl size="sm" aria-label={t("Device")} value={a.device ?? "output"} onValueChange={(v) => onChange(v === "mic" ? { type: "set-volume", level: a.level, device: "mic" } : { type: "set-volume", level: a.level })}
+              options={[{ value: "output", label: t("Speakers / headphones") }, { value: "mic", label: t("Microphone") }]} />
+          </Field>
+          <Slider label={t("Level")} aria-label={t("Level")} min={0} max={100} step={5} value={a.level} onValueChange={(v) => onChange({ ...a, level: Math.round(v) })} formatValue={(v) => `${v}%`} />
+          <span className="text-xs text-muted-foreground">{t("Sets this exact level each time you tap.")}</span>
+        </>
+      )}
+      {a?.type === "mic" && (
+        <Field label={t("Microphone")} id="f-mic">
+          <SegmentedControl aria-label={t("Microphone")} value={a.command} onValueChange={(v) => onChange({ type: "mic", command: v as "mute" | "unmute" | "toggle" })}
+            options={[
+              { value: "toggle", label: t("Toggle") },
+              { value: "mute", label: t("Mute") },
+              { value: "unmute", label: t("Unmute") },
+            ]} />
+          <span className="text-xs text-muted-foreground">{t(MIC_LABEL[a.command])}. {t("The default microphone of the computer; the button turns red on the phone while it is muted.")}</span>
         </Field>
       )}
       {a?.type === "sound" && <SoundFields action={a} onChange={(next) => onChange(next)} />}
