@@ -4,7 +4,8 @@ import { runCapture } from "./exec";
 import { WinHelper } from "./win32/helper";
 import { runShell, shellArgv } from "./win32/shell";
 import { idleSeconds as realIdle, realCredApi, sendInput, vkScan, vkToScan, type CredApi } from "./win32/ffi";
-import { hotkeyEvents, mediaEvents, typeEvents, volumeKeyEvents, type KeyEvent, type VkScan, type VkToScan } from "./win32/keys";
+import { parseCpuTemp, parseDevices, parseSessions, WIN_DEVICE_ID_RE } from "./win32/gaming";
+import { hotkeyEvents, hotkeyHoldEvents, mediaEvents, typeEvents, volumeKeyEvents, type KeyEvent, type VkScan, type VkToScan } from "./win32/keys";
 import type { AppCatalog, MicChange, MicState, Platform, SecretStore } from "./types";
 import type { AppInfo } from "../icons";
 import type { MediaApp, RawMedia } from "../media";
@@ -267,6 +268,33 @@ export function createWin32(d: Win32Deps = {}): Platform {
       return topProcessesFrom(all, sort, limit);
     },
     async lanName() { return undefined; },
+
+    // ----- gaming -----
+    async runningApps() {
+      const names = await helper.call<string[]>("proc.names", {}, 8000);
+      return Array.isArray(names) ? names.filter((n) => typeof n === "string" && n) : [];
+    },
+    async foregroundApp() {
+      const n = await helper.call<string | null>("window.foregroundapp", {}, 5000);
+      return typeof n === "string" && n ? n : null;
+    },
+    async audioSessions() { return parseSessions(await helper.call("audio.sessions", {}, 8000)); },
+    async setAppVolume(app, change) {
+      const req: Record<string, unknown> = { app };
+      if (change.level !== undefined) req.level = Math.max(0, Math.min(100, Math.round(change.level)));
+      if (change.delta !== undefined) req.delta = Math.max(-100, Math.min(100, Math.round(change.delta)));
+      if (change.muted !== undefined) req.muted = change.muted;
+      return parseSessions(await helper.call("audio.session.set", req, 8000));
+    },
+    async audioDevices(flow) { return parseDevices(await helper.call("audio.devices", { flow }, 8000)); },
+    async setDefaultAudioDevice(id) {
+      if (!WIN_DEVICE_ID_RE.test(id)) throw new Error("not an audio device id");
+      await helper.call("audio.default", { id }, 8000);
+    },
+    async holdKeys(keys, down) { send(hotkeyHoldEvents(keys, down ? "down" : "up", scan, toScan)); },
+    async cpuTemp() {
+      try { return parseCpuTemp(await helper.call("temp.cpu", {}, 10_000)); } catch { return { celsius: null, source: "none" }; }
+    },
 
     apps,
     soundCommand: (path, volume) => soundArgv(path, volume),

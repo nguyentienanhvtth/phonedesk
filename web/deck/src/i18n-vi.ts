@@ -194,4 +194,8 @@ export const VI: { [en: string]: string } = {
   "Unmute": "Bật tiếng",
   "No volume data": "Không có dữ liệu âm lượng",
   "No mic data": "Không có dữ liệu micro",
+  "CPU temperature": "Nhiệt độ CPU",
+  "Run LibreHardwareMonitor to see it": "Mở LibreHardwareMonitor để xem",
+  "No sensor found": "Không tìm thấy cảm biến",
+  "No NVIDIA GPU found": "Không tìm thấy GPU NVIDIA",
 }

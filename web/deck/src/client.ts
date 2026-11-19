@@ -496,6 +496,10 @@ export class DeckClient {
   press(pageId: string, itemId: string): Promise<PressResult> {
     return this.request({ type: 'press', pageId, itemId })
   }
+  /** A held hotkey button (push-to-talk): down = keys pressed and kept, up = released. */
+  hold(pageId: string, itemId: string, down: boolean): Promise<PressResult> {
+    return this.request({ type: 'hold', pageId, itemId, down })
+  }
   /** Answer a Claude Code question: answers {questionText: label | typed text}, other {questionText: true} for typed text; release hands it back to the terminal. */
   answerQuestion(id: string, body: { answers?: { [q: string]: string }; other?: { [q: string]: boolean }; choices?: { [q: string]: string[] }; custom?: { [q: string]: string }; release?: boolean }): Promise<PressResult> {
     const req: { [k: string]: unknown } = { type: 'question-answer', id }

@@ -113,4 +113,14 @@ describe("Gaming PC Keys page: real Windows shortcuts", () => {
     const names = new Set<string>(JSON.stringify(catalog).match(/"[a-z0-9-]+"/g)!.map((s: string) => s.slice(1, -1)));
     for (const p of gamingPcLayout().pages) for (const it of p.items as any[]) if (it.icon) expect(names.has(it.icon) ? it.icon : `missing ${it.icon}`).toBe(it.icon);
   });
+
+  test("stats page shows the CPU temperature; the CS2 app rule ships switched off", () => {
+    const layout = gamingPcLayout();
+    const stats = layout.pages.find((p) => p.id === "stats")!;
+    expect(stats.items.some((i: any) => i.widget === "cputemp")).toBe(true);
+    const rules = (layout as any).rules as any[];
+    expect(rules).toHaveLength(1);
+    expect(rules[0]).toMatchObject({ enabled: false, when: { kind: "app-running", app: "cs2.exe" }, then: [{ kind: "goto-page", pageId: "gaming" }], revert: true });
+    expect(validateLayout(layout).rules?.[0]?.enabled).toBe(false);
+  });
 });

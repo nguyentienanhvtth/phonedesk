@@ -123,6 +123,16 @@ export function hotkeyEvents(keys: string, scan: VkScan, toScan: VkToScan = stat
   return [...down.map((m) => ev(m, false)), ev(def, false), ev(def, true), ...[...down].reverse().map((m) => ev(m, true))];
 }
 
+/**
+ * One half of a hotkey for a held button: "down" = modifiers then the key pressed, "up" = the key then the modifiers
+ * released, in the reverse order (the same events hotkeyEvents sends in one go).
+ */
+export function hotkeyHoldEvents(keys: string, phase: "down" | "up", scan: VkScan, toScan: VkToScan = staticScan): KeyEvent[] {
+  const all = hotkeyEvents(keys, scan, toScan);
+  const half = all.length / 2;
+  return phase === "down" ? all.slice(0, half) : all.slice(half);
+}
+
 /** Types text as Unicode input (works for any layout and any character); newline = Enter, tab = Tab. */
 export function typeEvents(text: string): KeyEvent[] {
   const out: KeyEvent[] = [];

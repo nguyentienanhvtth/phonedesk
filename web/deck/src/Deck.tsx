@@ -440,6 +440,8 @@ function Tile(props: {
   onStep?: (p: Page, i: Item, delta: number) => void
   onLight?: (p: Page, i: Item, op: string, value: unknown) => void
   onPress: (p: Page, i: Item) => void
+  /** Held hotkey buttons: down on touch / mouse down, up on release. */
+  onHold?: (p: Page, i: Item, down: boolean) => void
   onDown: (e: PointerEvent, p: Page, i: Placed, kind: 'move' | 'resize') => void
 }) {
   const { page, item, stats, fx } = props
@@ -510,6 +512,21 @@ function Tile(props: {
   const showLabel = props.tt.showLabels && !item.hideLabel && !small
 
   const down = props.preview ? (e: PointerEvent) => props.onDown(e, page, item, 'move') : undefined
+  // push-to-talk: a hotkey button with hold presses on touch and releases on lift (touch + mouse: Safari 12 has no pointer events)
+  const holdBtn = !props.preview && !!props.onHold && item.kind === 'button' && !!item.action && item.action.type === 'hotkey' && !!item.action.hold
+  const hold = (d: boolean) => { if (props.onHold) props.onHold(page, item, d) }
+  const holdEv = holdBtn
+    ? {
+        onTouchStart: (e: TouchEvent) => { e.preventDefault(); hold(true) },
+        onTouchEnd: (e: TouchEvent) => { e.preventDefault(); hold(false) },
+        onTouchCancel: () => hold(false),
+        onMouseDown: () => hold(true),
+        onMouseUp: () => hold(false),
+        onMouseLeave: () => hold(false),
+        onContextMenu: (e: Event) => e.preventDefault(),
+      }
+    : {}
+  const tap = props.preview || holdBtn ? undefined : () => props.onPress(page, item)
   const handle = props.showHandle ? <span class="pd-handle" onPointerDown={(e) => props.onDown(e as PointerEvent, page, item, 'resize')} /> : null
 
   const entTap = !props.preview && item.kind === 'widget' && item.widget === 'entity' && !!item.entity && !item.entity.readOnly && (item.entity.id.indexOf('lock.') !== 0) && (item.entity.id.indexOf('sensor.') !== 0) && (item.entity.id.indexOf('binary_sensor.') !== 0) && (item.entity.id.indexOf('climate.') !== 0 ? true : true)
@@ -625,8 +642,9 @@ function Tile(props: {
         style={style}
         data-id={item.id}
         aria-label={item.label || undefined}
-        onClick={props.preview ? undefined : () => props.onPress(page, item)}
+        onClick={tap}
         onPointerDown={down}
+        {...holdEv}
       >
         <span class={'pd-ios__sq' + (asIs ? ' pd-ios__sq--asis' : '')} style={sqStyle}>
           {ic ? <TileIcon value={ic} size={lobe ? Math.round(sq * 0.6) : asIs ? sq : gsz} assets={props.assets} weight={props.sound ? 'Filled' : undefined} /> : null}
@@ -654,8 +672,9 @@ function Tile(props: {
       class={cls + ' pd-tile--btn' + (fx ? ' pd-fx-' + fx : '')}
       style={style}
       data-id={item.id}
-      onClick={props.preview ? undefined : () => props.onPress(page, item)}
+      onClick={tap}
       onPointerDown={down}
+      {...holdEv}
     >
       {icon ? (
         <span class="pd-tile__ic" style={{ color: iconColor || undefined, marginBottom: noLabel ? '0' : undefined }}>
@@ -1557,6 +1576,55 @@ export function Deck(props: DeckProps) {
       )
   }
 
+  // ---------- held keys (push-to-talk) ----------
+  const heldRef = useRef<{ [key: string]: { pageId: string; itemId: string } }>({})
+  const holdKey = (page: Page, item: Item, down: boolean) => {
+    const key = page.id + '/' + item.id
+    const held = heldRef.current
+    if (down) {
+      if (held[key]) return
+      held[key] = { pageId: page.id, itemId: item.id }
+      mark(key, 'pressed')
+      client.hold(page.id, item.id, true).then((r) => {
+        if (!r.ok) {
+          delete held[key]
+          mark(key, 'error', 900)
+          showToast(r.error || t('Action failed'))
+        }
+      })
+    } else {
+      if (!held[key]) return
+      delete held[key]
+      mark(key, '')
+      client.hold(page.id, item.id, false)
+    }
+  }
+  const releaseHeld = () => {
+    const held = heldRef.current
+    Object.keys(held).forEach((k) => {
+      const h = held[k]
+      delete held[k]
+      mark(k, '')
+      client.hold(h.pageId, h.itemId, false)
+    })
+  }
+  // another screen: the held button is gone, so its keys come up
+  useEffect(() => releaseHeld(), [pageIdx])
+  // the app going to the background must never leave a key held on the computer (the agent also lets go on disconnect)
+  useEffect(() => {
+    const releaseAll = releaseHeld
+    const vis = () => { if (document.hidden) releaseAll() }
+    document.addEventListener('visibilitychange', vis)
+    window.addEventListener('pagehide', releaseAll)
+    window.addEventListener('blur', releaseAll)
+    return () => {
+      document.removeEventListener('visibilitychange', vis)
+      window.removeEventListener('pagehide', releaseAll)
+      window.removeEventListener('blur', releaseAll)
+      releaseAll()
+    }
+  }, [])
+
   const press = (page: Page, item: Item) => {
     if (item.kind === 'widget' && item.widget === 'entity' && item.entity) {
       const eid = item.entity.id
@@ -1880,6 +1948,7 @@ export function Deck(props: DeckProps) {
                             busy={!!run[p.id + '/' + it.id]}
                             sound={it.action && it.action.type === 'sound' && st.sounds ? st.sounds[soundKey(it.action.sound)] : undefined}
                             onPress={press}
+                            onHold={holdKey}
                             onDown={onDown}
                           />
                         ))}

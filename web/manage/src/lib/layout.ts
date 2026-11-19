@@ -33,6 +33,8 @@ export function defaultAction(type: ActionType, firstPage = ""): Action {
     case "volume": return { type, command: "up" };
     case "set-volume": return { type, level: 50 };
     case "mic": return { type, command: "toggle" };
+    case "app-volume": return { type, app: "", command: "down", step: 10 };
+    case "output-device": return { type, devices: [] };
     case "page": return { type, page: firstPage };
     case "sound": return { type, sound: "", on: "mac", volume: 100, mode: "restart" };
     case "sound-stop": return { type };
@@ -80,6 +82,7 @@ export function findFree(page: Page, w = 1, h = 1): { x: number; y: number } | u
 /** Preferred size of a widget: big for clock and now-playing, 2x1 for the metrics. */
 export const WIDGET_SIZE: Record<WidgetKind, [number, number]> = {
   clock: [4, 2], nowplaying: [4, 2], cpu: [2, 1], memory: [2, 1], uptime: [2, 1], load: [2, 1], network: [2, 1], quota: [2, 2], sessions: [2, 3], entity: [1, 1], weather: [2, 2], value: [2, 1], notifications: [2, 2],
+  gpu: [2, 1], cputemp: [2, 1], volume: [2, 1], mic: [2, 1],
 };
 
 /** Candidate sizes, largest first, ending with 1x1. */
@@ -229,10 +232,12 @@ export const PROVIDER_LABEL: Record<string, string> = { claude: "Claude", codex:
 export const WIDGET_HINT: Record<WidgetKind, string> = {
   clock: "Time and date", nowplaying: "Current track", cpu: "CPU usage (click to see processes)", memory: "Memory in use",
   uptime: "How long the Mac has been running", load: "System load", network: "Network speed", quota: "Claude / Codex / Antigravity quota", sessions: "Running AI sessions", entity: "Home Assistant device", weather: "Weather", value: "Value pushed from outside (webhook)", notifications: "Recent notifications",
+  gpu: "NVIDIA GPU load, temperature and memory", cputemp: "CPU temperature (Windows: run LibreHardwareMonitor)", volume: "Volume slider", mic: "Microphone slider",
 };
 
 export const WIDGET_LABEL: Record<string, string> = {
   clock: "Clock", cpu: "CPU", memory: "Memory", uptime: "Uptime", load: "System load", network: "Network", nowplaying: "Now playing", quota: "AI quota", sessions: "AI sessions", entity: "Home (Home Assistant)", weather: "Weather", value: "Pushed value", notifications: "Notifications",
+  gpu: "GPU", cputemp: "CPU temperature", volume: "Volume slider", mic: "Microphone slider",
 };
 
 export const ACTION_LABEL: Record<ActionType, string> = {
@@ -244,6 +249,8 @@ export const ACTION_LABEL: Record<ActionType, string> = {
   volume: "Volume",
   "set-volume": "Set volume level",
   mic: "Microphone",
+  "app-volume": "App volume (Windows)",
+  "output-device": "Switch audio device (Windows)",
   page: "Switch screen",
   sound: "Play sound",
   hass: "Home Assistant",
@@ -253,15 +260,16 @@ export const ACTION_LABEL: Record<ActionType, string> = {
 
 export const MEDIA_LABEL: Record<string, string> = { playpause: "Play / Pause", next: "Next track", previous: "Previous track" };
 export const VOLUME_LABEL: Record<string, string> = { up: "Increase", down: "Decrease", mute: "Mute" };
+export const APP_VOLUME_LABEL: Record<string, string> = { set: "Set level", up: "Increase", down: "Decrease", mute: "Mute", unmute: "Unmute", "toggle-mute": "Toggle mute" };
 export const MIC_LABEL: Record<string, string> = { toggle: "Toggle mute", mute: "Mute", unmute: "Unmute" };
 
 export const ACTION_ICON: Record<ActionType, string> = {
   open: "external-link", hotkey: "keyboard", type: "type", shell: "square-terminal",
-  media: "play", volume: "volume-2", "set-volume": "adjustments-horizontal", mic: "microphone", page: "layout-grid", sound: "music", "sound-stop": "player-stop", hass: "home", macro: "bolt",
+  media: "play", volume: "volume-2", "set-volume": "adjustments-horizontal", mic: "microphone", "app-volume": "volume", "output-device": "headphones", page: "layout-grid", sound: "music", "sound-stop": "player-stop", hass: "home", macro: "bolt",
 };
 
 export const ACTION_SHORT: Record<ActionType, string> = {
-  open: "Open", hotkey: "Hotkey", type: "Type", shell: "Command", media: "Music", volume: "Volume", "set-volume": "Set level", mic: "Mic", page: "Screen", sound: "Sound", "sound-stop": "Stop sound", hass: "Home", macro: "Macro",
+  open: "Open", hotkey: "Hotkey", type: "Type", shell: "Command", media: "Music", volume: "Volume", "set-volume": "Set level", mic: "Mic", "app-volume": "App volume", "output-device": "Audio device", page: "Screen", sound: "Sound", "sound-stop": "Stop sound", hass: "Home", macro: "Macro",
 };
 
 /** One-line summary of what a button does, for the item list. */
@@ -269,13 +277,19 @@ export function actionSummary(a: Action | undefined): string {
   if (!a) return t("No action");
   switch (a.type) {
     case "open": return t("Open {target}", { target: a.target || "…" });
-    case "hotkey": return t("Hotkey {keys}", { keys: a.keys ? hotkeyText(a.keys) : "…" });
+    case "hotkey": return a.hold ? t("Hold {keys}", { keys: a.keys ? hotkeyText(a.keys) : "…" }) : t("Hotkey {keys}", { keys: a.keys ? hotkeyText(a.keys) : "…" });
     case "type": return t("Type \"{text}\"", { text: a.text.length > 24 ? a.text.slice(0, 24) + "…" : a.text });
     case "shell": return t("Command: {command}", { command: a.command || "…" });
     case "media": return t(MEDIA_LABEL[a.command] ?? a.command);
     case "volume": return t("Volume: {mode}", { mode: t(VOLUME_LABEL[a.command] ?? a.command).toLowerCase() });
     case "set-volume": return a.device === "mic" ? t("Microphone level {n}%", { n: a.level }) : t("Volume level {n}%", { n: a.level });
     case "mic": return t("Microphone: {mode}", { mode: t(MIC_LABEL[a.command] ?? a.command).toLowerCase() });
+    case "app-volume": return a.command === "set"
+      ? t("{app} volume {n}%", { app: a.app || "…", n: a.level ?? 50 })
+      : t("{app}: {mode}", { app: a.app || "…", mode: t(APP_VOLUME_LABEL[a.command] ?? a.command).toLowerCase() });
+    case "output-device": return a.devices.length === 1
+      ? t("Audio device: {name}", { name: a.devices[0] })
+      : a.devices.length ? t("Cycle {n} audio devices", { n: a.devices.length }) : t("Audio device (none selected)");
     case "page": return t("Go to screen {page}", { page: a.page || "…" });
     case "sound": return a.sound ? t("Play sound") : t("Play sound (no clip selected)");
     case "sound-stop": return t("Stop all sounds");

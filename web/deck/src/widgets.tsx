@@ -11,6 +11,7 @@ import { NotificationsTile, ValueTile, WeatherTile } from './automation'
 import { AnimatedNumber, BAND_COLOR, DeltaPill, Gauge, type Band } from './knowns'
 import { tint } from './theme'
 import { VolumeWidget, MicWidget } from './sliders'
+import { formatTemp } from './temp'
 import type { AiData, ClockOptions, MetricOptions, QuotaOptions, EntityOptions, WeatherOptions, PushOptions, WeatherData, PushedValue, Notice, HassEntity, IconAssets, Media, MediaCommand, Stats, WidgetKind } from './types'
 
 /** Live widgets: clock, cpu, memory, network, load, uptime, nowplaying. Sizes come from the tile (tw/th in px). */
@@ -30,6 +31,8 @@ const GB = 1024 * 1024 * 1024
 
 export const DEFAULT_COLOR: { [k: string]: string } = {
   cpu: '#2dd4bf',
+  cputemp: '#fb923c',
+  gpu: '#a3e635',
   memory: '#f472b6',
   network: '#f59e0b',
   load: '#34d399',
@@ -119,10 +122,56 @@ export function Widget(props: WidgetProps) {
   if (props.kind === 'quota') return <QuotaWidget {...(props as AiWidgetProps)} />
   if (props.kind === 'sessions') return <SessionsWidget {...(props as AiWidgetProps)} />
   if (props.kind === 'volume') return <VolumeWidget stats={props.stats} tw={props.tw} th={props.th} scale={props.scale} showLabel={props.showLabel} color={props.color} textColor={props.textColor} onVolume={props.onVolume} />
+  if (props.kind === 'cputemp' || props.kind === 'gpu') return <SensorTile {...props} />
   if (props.kind === 'mic' && props.onMic) return <MicWidget stats={props.stats} tw={props.tw} th={props.th} scale={props.scale} showLabel={props.showLabel} color={props.color} textColor={props.textColor} onMic={props.onMic} />
   return <Metric {...props} />
 }
 
+
+/** °C bands for a CPU package / GPU core: under 70 fine, under 85 warm, else hot. */
+const tempBand = (c: number): Band => (c < 70 ? 'good' : c < 85 ? 'watch' : 'risk')
+
+/**
+ * CPU temperature (from LibreHardwareMonitor / OpenHardwareMonitor / ACPI on Windows, sysfs on Linux) and the NVIDIA GPU
+ * (load, core temperature, memory). No reading: a dash and one short line on how to get one.
+ */
+function SensorTile(props: WidgetProps) {
+  const s = props.stats
+  const cpu = props.kind === 'cputemp'
+  const color = props.color || DEFAULT_COLOR[props.kind] || '#8b8b94'
+  const pad = props.tw >= 170 ? 16 : props.tw >= 120 ? 12 : 8
+  const avail = Math.max(20, props.tw - pad * 2)
+  const label = (cpu ? t('CPU temperature') : 'GPU').toUpperCase()
+  const tc = props.textColor || undefined
+  let main = '–'
+  let sub = ''
+  let band: Band | null = null
+  if (cpu) {
+    const r = s ? s.cpuTemp : undefined
+    if (r && typeof r.celsius === 'number') {
+      main = formatTemp(r.celsius, 'C', undefined, 0)
+      band = tempBand(r.celsius)
+      sub = r.sensor || ''
+    } else if (r) sub = getPlatform() === 'win32' ? t('Run LibreHardwareMonitor to see it') : t('No sensor found')
+    else sub = s ? t('Reading…') : ''
+  } else {
+    const g = s ? s.gpu : undefined
+    if (g) {
+      main = Math.round(g.loadPercent) + '%'
+      band = tempBand(g.tempC)
+      sub = formatTemp(g.tempC, 'C', undefined, 0) + (g.memTotalMB ? ' · ' + (g.memUsedMB / 1024).toFixed(1) + '/' + Math.round(g.memTotalMB / 1024) + ' GB' : '')
+    } else if (g === null) sub = t('No NVIDIA GPU found')
+    else sub = s ? t('Reading…') : ''
+  }
+  const size = fit(main.length, avail, Math.round(Math.min(props.th * 0.42, 40 * props.scale)), 14)
+  return (
+    <div class="pd-metric" style={{ padding: pad + 'px' }}>
+      {props.showLabel ? <div class="pd-ml" style={{ fontSize: '11px', color: props.textColor || color }}>{label}</div> : null}
+      <div class="pd-mv" style={{ fontSize: size + 'px', color: band ? BAND_COLOR[band] : tc }}>{main}</div>
+      {sub && props.th >= 64 ? <div class="pd-msub" style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div> : null}
+    </div>
+  )
+}
 
 /** First vs last sample of the history (~1 minute at one sample a second). */
 const deltaOf = (a: number[]): number | null => {

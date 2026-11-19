@@ -11,6 +11,7 @@ import { SegmentedControl } from "@/components/ui/knowns/segmented-control";
 import { Switch } from "@/components/ui/knowns/switch";
 import { EntityPicker } from "@/components/entity-picker";
 import { ItemRefPicker } from "@/components/item-ref-picker";
+import { AppNameField } from "@/components/gaming-fields";
 import { DAY_LABEL, RULE_TEMPLATES, THEN_KINDS, THEN_LABEL, WHEN_KINDS, WHEN_LABEL, newThen, newWhen, ruleIdFor, ruleProblems, thenSummary, whenSummary } from "@/lib/rules";
 import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -198,6 +199,17 @@ function WhenFields({ when: w, onChange }: { when: RuleWhen; onChange: (w: RuleW
       </>
     );
     case "idle": return <Field label={t("Nobody pressed for (minutes)")} id="rw-idle"><Input id="rw-idle" type="number" min={1} max={1440} value={w.minutes} onChange={(e) => onChange({ ...w, minutes: num(e.target.value, 10) })} /></Field>;
+    case "app-running":
+    case "app-foreground": return (
+      <>
+        <AppNameField id="rw-app" label={t("Program")} value={w.app} onChange={(app) => onChange({ ...w, app })} />
+        <span className="text-xs text-muted-foreground">
+          {w.kind === "app-running"
+            ? t("Fires when the program starts; with “Go back to the previous page when done”, the phone returns when it quits. Checked every 3 seconds.")
+            : t("Fires when the program's window comes to the front (Windows and macOS). Checked every 3 seconds.")}
+        </span>
+      </>
+    );
   }
 }
 

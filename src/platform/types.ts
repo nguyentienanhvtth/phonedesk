@@ -15,6 +15,22 @@ export interface MicChange {
   muted?: boolean;
 }
 
+/** One program in the volume mixer (Windows audio session; a program with several sessions is listed once per session). */
+export interface AudioSession {
+  pid: number;
+  /** Process name without .exe ("Discord", "cs2"). */
+  app: string;
+  level: number; // 0-100
+  muted: boolean;
+  /** Playing right now (AudioSessionStateActive). */
+  active: boolean;
+}
+export interface AudioDevice { id: string; name: string; isDefault: boolean }
+/** level: absolute 0-100; delta: relative; muted: on/off or flip. */
+export interface AppVolumeChange { level?: number; delta?: number; muted?: boolean | "toggle" }
+export type CpuTempSource = "librehardwaremonitor" | "openhardwaremonitor" | "acpi" | "sysfs" | "none";
+export interface CpuTempReading { celsius: number | null; source: CpuTempSource; sensor?: string }
+
 /** Keys and typing, OS actions: the operations that differ per OS. */
 export interface Platform {
   readonly id: NodeJS.Platform;
@@ -61,6 +77,24 @@ export interface Platform {
   /** Where the "system load" figure comes from: the OS load average, or an estimate from CPU use (Windows has none). */
   loadKind: "loadavg" | "estimate";
   idleSeconds(): Promise<number | null>;
+
+  // ----- gaming (optional: undefined = this OS cannot) -----
+  /** Names of the running programs (as the OS lists them). */
+  runningApps?(): Promise<string[]>;
+  /** The program of the foreground window, null when none. */
+  foregroundApp?(): Promise<string | null>;
+  /** Per-app volume: the mixer's sessions. */
+  audioSessions?(): Promise<AudioSession[]>;
+  /** Changes every session of a program; returns them after the change ([] = it has no audio session now). */
+  setAppVolume?(app: string, change: AppVolumeChange): Promise<AudioSession[]>;
+  /** Active playback (output) or recording (input) devices. */
+  audioDevices?(flow: "output" | "input"): Promise<AudioDevice[]>;
+  /** Makes a device (an id from audioDevices) the default for every role. */
+  setDefaultAudioDevice?(id: string): Promise<void>;
+  /** Presses (down) or releases (up) a hotkey and keeps it held in between (push-to-talk). */
+  holdKeys?(keys: string, down: boolean): Promise<void>;
+  /** CPU temperature from the OS or a running sensor tool. */
+  cpuTemp?(): Promise<CpuTempReading>;
 
   /** Opens a URL or settings link in the default handler (System Settings, the browser). */
   openExternal(url: string): Promise<void>;

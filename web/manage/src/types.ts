@@ -1,13 +1,15 @@
 // Mirrors src/config.ts of the agent (that file imports node modules, so the types are duplicated here).
 export type Action =
   | { type: "open"; target: string }
-  | { type: "hotkey"; keys: string }
+  | { type: "hotkey"; keys: string; hold?: boolean }
   | { type: "type"; text: string }
   | { type: "shell"; command: string }
   | { type: "media"; command: "playpause" | "next" | "previous" }
   | { type: "volume"; command: "up" | "down" | "mute" }
   | { type: "set-volume"; level: number; device?: "output" | "mic" }
   | { type: "mic"; command: MicCommand }
+  | { type: "app-volume"; app: string; command: AppVolumeCommand; level?: number; step?: number }
+  | { type: "output-device"; devices: string[]; flow?: "output" | "input" }
   | { type: "page"; page: string }
   | { type: "sound"; sound: string; on?: SoundTarget; volume?: number; mode?: SoundMode }
   | { type: "sound-stop" }
@@ -15,6 +17,14 @@ export type Action =
   | { type: "macro"; steps: MacroStep[] };
 
 export type MicCommand = "mute" | "unmute" | "toggle";
+export type AppVolumeCommand = "set" | "up" | "down" | "mute" | "unmute" | "toggle-mute";
+export const OUTPUT_DEVICES_MAX = 8;
+/** The agent's APP_NAME_RE (src/automation.ts). */
+export const APP_NAME_RE = /^[\p{L}\p{N} ._()+&'-]{1,64}$/u;
+/** One program in the Windows volume mixer (GET /api/audio/sessions). */
+export interface AudioSession { pid: number; app: string; level: number; muted: boolean; active: boolean }
+/** A playback / recording device (GET /api/audio/devices). */
+export interface AudioDevice { id: string; name: string; isDefault: boolean }
 export type SoundTarget = "mac" | "phone" | "both";
 export type SoundMode = "overlap" | "restart" | "toggle";
 /** An uploaded clip. `id` is the value stored in actions (`snd:<16hex>`). */
@@ -27,7 +37,7 @@ export interface Sound {
 }
 
 export type ActionType = Action["type"];
-export const ACTION_TYPES: ActionType[] = ["open", "hotkey", "type", "shell", "media", "volume", "set-volume", "mic", "page", "sound", "sound-stop", "hass", "macro"];
+export const ACTION_TYPES: ActionType[] = ["open", "hotkey", "type", "shell", "media", "volume", "set-volume", "mic", "app-volume", "output-device", "page", "sound", "sound-stop", "hass", "macro"];
 
 export type AiProvider = "claude" | "codex" | "antigravity" | "opencode" | "grok";
 export const AI_PROVIDERS: AiProvider[] = ["claude", "codex", "antigravity", "opencode", "grok"];
@@ -101,8 +111,8 @@ export interface MetricOptions {
   showSub?: boolean;
 }
 
-export type WidgetKind = "clock" | "cpu" | "memory" | "uptime" | "load" | "network" | "nowplaying" | "quota" | "sessions" | "entity" | "weather" | "value" | "notifications";
-export const WIDGET_KINDS: WidgetKind[] = ["clock", "cpu", "memory", "uptime", "load", "network", "nowplaying", "quota", "sessions", "entity", "weather", "value", "notifications"];
+export type WidgetKind = "clock" | "cpu" | "memory" | "uptime" | "load" | "network" | "nowplaying" | "quota" | "sessions" | "entity" | "weather" | "value" | "notifications" | "gpu" | "volume" | "mic" | "cputemp";
+export const WIDGET_KINDS: WidgetKind[] = ["clock", "cpu", "memory", "uptime", "load", "network", "nowplaying", "quota", "sessions", "entity", "weather", "value", "notifications", "gpu", "cputemp", "volume", "mic"];
 
 export interface WeatherOptions {
   source?: "auto" | "hass" | "open-meteo";
@@ -123,7 +133,9 @@ export type MacroStep =
   | { kind: "volume"; command: "up" | "down" | "mute" }
   | { kind: "hass"; service: string; entityId?: string; data?: Record<string, unknown> }
   | { kind: "item"; pageId: string; itemId: string }
-  | { kind: "notify"; text: string };
+  | { kind: "notify"; text: string }
+  | { kind: "sound"; sound: string; on?: SoundTarget; volume?: number }
+  | { kind: "page"; pageId: string };
 export const MACRO_MAX_STEPS = 20;
 export const MACRO_MAX_WAIT_MS = 30000;
 
@@ -136,7 +148,9 @@ export type RuleWhen =
   | { kind: "time-between"; from: string; to: string; days?: number[] }
   | { kind: "push"; key: string; op?: "=" | "!=" | ">" | "<"; value?: string | number }
   | { kind: "hass-state"; entityId: string; state: string }
-  | { kind: "idle"; minutes: number };
+  | { kind: "idle"; minutes: number }
+  | { kind: "app-running"; app: string }
+  | { kind: "app-foreground"; app: string };
 export type RuleThen =
   | { kind: "goto-page"; pageId: string; countdown?: number }
   | { kind: "notify"; text: string; level?: "info" | "warn" | "alert" }
