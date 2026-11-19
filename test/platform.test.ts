@@ -201,6 +201,19 @@ describe("win32 platform adapter (fake helper, fake input, fake credentials)", (
     await expect(make({ "volume.set": new Error("no audio device") }).p.setVolume({ level: 10 })).rejects.toThrow("no audio device");
   });
 
+  test("microphone: read maps the helper's answer, set validates; mute toggles", async () => {
+    const { p, calls } = make({ "mic.get": { level: 80, muted: false }, "mic.set": true });
+    expect(await p.readMic!()).toEqual({ level: 80, muted: false });
+    await p.setMic!({ level: 50 });
+    await p.setMic!({ muted: true });
+    expect(calls.filter((c) => c.cmd === "mic.set").map((c) => c.args)).toEqual([{ level: 50 }, { muted: true }]);
+    await expect(p.setMic!({ level: 101 })).rejects.toThrow("0-100");
+    await expect(p.setMic!({ level: 1.5 })).rejects.toThrow("0-100");
+    expect(await make({ "mic.get": new Error("x") }).p.readMic!()).toBeNull();
+    expect(await make({ "mic.get": null }).p.readMic!()).toBeNull();
+    await expect(make({ "mic.set": new Error("no microphone") }).p.setMic!({ level: 10 })).rejects.toThrow("no microphone");
+  });
+
   test("media: read maps to RawMedia with a readable app name; null and errors are 'nothing playing'", async () => {
     const m = { app: "SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify", title: "T", artist: "A", album: "Al", playing: true, position: 12.5, duration: 200 };
     expect(await make({ "media.read": m }).p.readMedia()).toEqual({ app: "Spotify", title: "T", artist: "A", album: "Al", playing: true, position: 12.5, duration: 200 });

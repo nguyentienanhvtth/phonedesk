@@ -4,7 +4,7 @@ import { runCapture } from "./exec";
 import { WinHelper } from "./win32/helper";
 import { idleSeconds as realIdle, realCredApi, sendInput, vkScan, type CredApi } from "./win32/ffi";
 import { hotkeyEvents, mediaEvents, typeEvents, volumeKeyEvents, type KeyEvent, type VkScan } from "./win32/keys";
-import type { AppCatalog, Platform, SecretStore } from "./types";
+import type { AppCatalog, MicChange, MicState, Platform, SecretStore } from "./types";
 import type { AppInfo } from "../icons";
 import type { MediaApp, RawMedia } from "../media";
 import type { NetCounters } from "../stats";
@@ -199,6 +199,23 @@ export function createWin32(d: Win32Deps = {}): Platform {
       } else {
         if (typeof v.muted !== "boolean") throw new Error("muted must be a boolean");
         await helper.call("volume.set", { muted: v.muted });
+      }
+    },
+
+    async readMic(): Promise<MicState | null> {
+      try {
+        const v = await helper.call<{ level: number; muted: boolean }>("mic.get", {}, 5000);
+        return v && typeof v.level === "number" ? { level: Math.max(0, Math.min(100, Math.round(v.level))), muted: !!v.muted } : null;
+      } catch { return null; }
+    },
+    async setMic(v: MicChange) {
+      if (v.level !== undefined) {
+        if (!Number.isInteger(v.level) || v.level < 0 || v.level > 100) throw new Error("mic level must be an integer 0-100");
+        await helper.call("mic.set", { level: v.level });
+      }
+      if (v.muted !== undefined) {
+        if (typeof v.muted !== "boolean") throw new Error("mic muted must be a boolean");
+        await helper.call("mic.set", { muted: v.muted });
       }
     },
 

@@ -1,7 +1,8 @@
-# PhoneDesk for Windows 10/11 (experimental): fetch, verify, install and start it from one command.
+# PhoneDesk for Windows 10/11: fetch, verify, install and start it from one command.
+# This is the nguyentienanhvtth fork — it fetches releases from nguyentienanhvtth/phonedesk only.
 #
 # Usage
-#   irm https://raw.githubusercontent.com/howznguyen/phonedesk/main/setup.ps1 | iex
+#   irm https://raw.githubusercontent.com/nguyentienanhvtth/phonedesk/main/setup.ps1 | iex
 #
 # Run it from a normal PowerShell window. Only the optional firewall rule needs administrator rights, and Windows asks
 # for those itself (UAC). Run it again any time to upgrade; %USERPROFILE%\.phonedesk is never wiped.
@@ -37,7 +38,8 @@ function Install-PhoneDesk {
   )
   $ErrorActionPreference = 'Stop'
   $ProgressPreference = 'SilentlyContinue' # the progress bar makes Invoke-WebRequest crawl in Windows PowerShell 5.1
-  $repo = 'howznguyen/phonedesk'
+  # This fork fetches releases from nguyentienanhvtth/phonedesk, never from the upstream howznguyen/phonedesk.
+  $repo = 'nguyentienanhvtth/phonedesk'
   $asset = 'phonedesk-windows-x64.exe'
   $stages = 6
 

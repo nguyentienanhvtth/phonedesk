@@ -51,6 +51,24 @@ namespace PD {
     public static void SetMute(bool m) { Guid g = Guid.Empty; Ep().SetMute(m, ref g); }
   }
 
+  public static class MicAudio {
+    public static bool Available() {
+      try { var e = (IMMDeviceEnumerator)(new MMDeviceEnumeratorCom()); IMMDevice d; return e.GetDefaultAudioEndpoint(1, 2, out d) == 0 && d != null; }
+      catch { return false; }
+    }
+    static IAudioEndpointVolume Ep() {
+      var e = (IMMDeviceEnumerator)(new MMDeviceEnumeratorCom());
+      IMMDevice d; Marshal.ThrowExceptionForHR(e.GetDefaultAudioEndpoint(1, 2, out d));
+      Guid g = typeof(IAudioEndpointVolume).GUID; object o;
+      Marshal.ThrowExceptionForHR(d.Activate(ref g, 23, IntPtr.Zero, out o));
+      return (IAudioEndpointVolume)o;
+    }
+    public static float GetLevel() { float l; Ep().GetMasterVolumeLevelScalar(out l); return l; }
+    public static bool GetMute() { bool m; Ep().GetMute(out m); return m; }
+    public static void SetLevel(float l) { Guid g = Guid.Empty; Ep().SetMasterVolumeLevelScalar(l, ref g); }
+    public static void SetMute(bool m) { Guid g = Guid.Empty; Ep().SetMute(m, ref g); }
+  }
+
   [StructLayout(LayoutKind.Sequential)] struct SIZE { public int cx, cy; }
   [StructLayout(LayoutKind.Sequential)] struct BITMAP { public int bmType, bmWidth, bmHeight, bmWidthBytes; public short bmPlanes, bmBitsPixel; public IntPtr bmBits; }
   [ComImport, Guid("bcc18b79-ba16-442f-80c4-8a59c30c463b"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
@@ -215,6 +233,17 @@ function Cmd-VolumeSet($a) {
   $true
 }
 
+function Cmd-MicGet {
+  if (-not [PD.MicAudio]::Available()) { return $null }  # no microphone
+  try { @{ level = [int][Math]::Round([PD.MicAudio]::GetLevel() * 100); muted = [PD.MicAudio]::GetMute() } } catch { $null }
+}
+function Cmd-MicSet($a) {
+  if (-not [PD.MicAudio]::Available()) { throw "no microphone" }
+  if ($null -ne $a.level) { [PD.MicAudio]::SetLevel([float]([Math]::Max(0, [Math]::Min(100, [double]$a.level)) / 100.0)) }
+  if ($null -ne $a.muted) { [PD.MicAudio]::SetMute([bool]$a.muted) }
+  $true
+}
+
 function Cmd-AppsList {
   $list = @()
   foreach ($a in (Get-StartApps)) { if ($a.Name -and $a.AppID) { $list += @{ name = [string]$a.Name; id = [string]$a.AppID } } }
@@ -332,6 +361,8 @@ function Handle($req) {
     'media.control' { return Cmd-MediaControl $req }
     'volume.get' { return Cmd-VolumeGet }
     'volume.set' { return Cmd-VolumeSet $req }
+    'mic.get' { return Cmd-MicGet }
+    'mic.set' { return Cmd-MicSet $req }
     'apps.list' { return Cmd-AppsList }
     'apps.icon' { return Cmd-AppIcon $req }
     'apps.open' { return Cmd-AppOpen $req }

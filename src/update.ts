@@ -7,7 +7,24 @@ import { gunzipSync } from "node:zlib";
 import { platform } from "./platform";
 import pkg from "../package.json" with { type: "json" };
 
-export const REPO = "howznguyen/phonedesk";
+/**
+ * The GitHub repository for release lookups.
+ *
+ * This fork (nguyentienanhvtth/phonedesk) has upstream auto-updates DISABLED by default.
+ * Updates only check this fork's own releases, never the upstream (howznguyen/phonedesk).
+ *
+ * To enable update checks from this fork, set the theme.updateCheck option to true in the layout.
+ * The env var PHONEDESK_REPO can override the repository (for testing or other forks).
+ */
+export const REPO = process.env.PHONEDESK_REPO ?? "nguyentienanhvtth/phonedesk";
+
+/**
+ * True when upstream updates are disabled.
+ * In this fork: defaults to true (disabled) unless PHONEDESK_ENABLE_UPDATE_CHECK=1.
+ * This prevents the fork from ever downloading upstream releases.
+ */
+export const upstreamUpdatesDisabled = (): boolean => process.env.PHONEDESK_ENABLE_UPDATE_CHECK !== "1";
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** "v0.1.2" -> "0.1.2" */
@@ -239,7 +256,7 @@ export async function runUpdate(o: UpdateOptions = {}): Promise<UpdateResult> {
 export interface UpdateInfo { current: string; latest: string | null; available: boolean; checkedAt: number | null; enabled: boolean; error?: string }
 export const UPDATE_TTL_MS = 24 * 3600_000;
 
-/** One release lookup per day (also when it failed), never when switched off, never more than one in flight. */
+/** One release lookup per day (also when it failed), never when switched off or when upstream updates are disabled. */
 export class UpdateChecker {
   private cache: { at: number; latest: string | null; error?: string } | null = null;
   private inflight: Promise<void> | null = null;
@@ -247,7 +264,9 @@ export class UpdateChecker {
   async get(enabled: boolean, force = false): Promise<UpdateInfo> {
     const current = this.o.current?.() ?? currentVersion();
     const now = (this.o.now ?? Date.now)();
-    if (!enabled) return { current, latest: null, available: false, checkedAt: null, enabled: false };
+    if (!enabled || upstreamUpdatesDisabled()) {
+      return { current, latest: null, available: false, checkedAt: null, enabled: false, ...(upstreamUpdatesDisabled() ? { error: `update checks disabled in this fork (set PHONEDESK_ENABLE_UPDATE_CHECK=1 to enable checks from ${REPO})` } : {}) };
+    }
     if (force || !this.cache || now - this.cache.at >= UPDATE_TTL_MS) {
       this.inflight ??= (async () => {
         try { this.cache = { at: now, latest: bare(await (this.o.latest ?? (() => latestTag({ retrySeconds: 1 })))()) }; }

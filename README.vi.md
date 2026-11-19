@@ -7,10 +7,12 @@
 <p align="center"><b>Điện thoại cũ thành bảng điều khiển cho máy tính.</b></p>
 
 <p align="center">
-  <a href="https://github.com/howznguyen/phonedesk/releases"><img alt="Release" src="https://img.shields.io/github/v/release/howznguyen/phonedesk?color=22d3ee&label=release"></a>
+  <a href="https://github.com/nguyentienanhvtth/phonedesk/releases"><img alt="Release" src="https://img.shields.io/github/v/release/nguyentienanhvtth/phonedesk?color=22d3ee&label=release"></a>
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-22d3ee"></a>
   <img alt="macOS and Windows" src="https://img.shields.io/badge/platform-macOS%20%C2%B7%20Windows-0b0d10">
 </p>
+
+> **Fork này** dựa trên [howznguyen/phonedesk](https://github.com/howznguyen/phonedesk) (MIT). Các bản cài đặt và cập nhật chỉ lấy từ repo này (nguyentienanhvtth/phonedesk), không tự động tải từ upstream.
 
 <p align="center"><a href="README.md">English</a> · <b>Tiếng Việt</b></p>
 
@@ -74,16 +76,16 @@ Wi-Fi**. Không cần cài gì trên điện thoại. Mất khoảng 2 phút.
 2. Sao chép dòng dưới, dán vào Terminal, bấm <kbd>Return</kbd>:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/howznguyen/phonedesk/main/setup.sh | bash
+curl -fsSL https://raw.githubusercontent.com/nguyentienanhvtth/phonedesk/main/setup.sh | bash
 ```
 
-**Trên Windows** (thử nghiệm)
+**Trên Windows**
 
 1. Mở **PowerShell**: bấm **Start**, gõ `PowerShell`, bấm <kbd>Enter</kbd> (không cần quyền quản trị).
 2. Sao chép dòng dưới, dán vào PowerShell, bấm <kbd>Enter</kbd>:
 
 ```powershell
-irm https://raw.githubusercontent.com/howznguyen/phonedesk/main/setup.ps1 | iex
+irm https://raw.githubusercontent.com/nguyentienanhvtth/phonedesk/main/setup.ps1 | iex
 ```
 
 Bạn sẽ thấy thanh tải, rồi vài dòng `OK`. Cuối cùng PhoneDesk in ra một **mã QR**, một **địa chỉ cho điện thoại**
@@ -139,13 +141,13 @@ tư & Bảo mật → Trợ năng). Windows hỏi một lần cho PhoneDesk dùn
 ### Cập nhật hoặc gỡ
 
 - **Cập nhật:** chạy lại đúng dòng lệnh cài. Layout và điện thoại đã ghép đôi vẫn giữ nguyên.
-- **Gỡ (Mac):** `curl -fsSL https://raw.githubusercontent.com/howznguyen/phonedesk/main/uninstall.sh | bash`. Dữ liệu được giữ lại; thêm `-s -- --purge` sau `bash` để xóa luôn.
-- **Gỡ (Windows):** `irm https://raw.githubusercontent.com/howznguyen/phonedesk/main/uninstall.ps1 | iex`.
+- **Gỡ (Mac):** `curl -fsSL https://raw.githubusercontent.com/nguyentienanhvtth/phonedesk/main/uninstall.sh | bash`. Dữ liệu được giữ lại; thêm `-s -- --purge` sau `bash` để xóa luôn.
+- **Gỡ (Windows):** `irm https://raw.githubusercontent.com/nguyentienanhvtth/phonedesk/main/uninstall.ps1 | iex`.
 
 <details>
 <summary>Tùy chọn khác và chi tiết bộ cài</summary>
 
-- Bộ cài tải đúng file từ [bản phát hành mới nhất](https://github.com/howznguyen/phonedesk/releases/latest), kiểm tra SHA-256
+- Bộ cài tải đúng file từ [bản phát hành mới nhất](https://github.com/nguyentienanhvtth/phonedesk/releases/latest), kiểm tra SHA-256
   với `SHA256SUMS` (sai là dừng), cài cho riêng người dùng của bạn (không cần `sudo` hay quyền quản trị), tự chạy khi đăng
   nhập (launchd trên macOS, Task Scheduler trên Windows) và thêm vào PATH.
 - Tùy chọn trên Mac đặt sau `bash -s --`: `--yes` (không hỏi), `--version 0.1.1`, `--port 7421`, `--no-autostart`,
@@ -162,21 +164,76 @@ tư & Bảo mật → Trợ năng). Windows hỏi một lần cho PhoneDesk dùn
 
 ## Cài từ mã nguồn
 
-Yêu cầu: macOS 13 trở lên (Apple silicon hoặc Intel), hoặc Windows 10/11 x64 (thử nghiệm). Linux chưa được thử.
+Yêu cầu: macOS 13 trở lên (Apple silicon hoặc Intel), hoặc Windows 10/11 x64. Linux chưa được thử.
 
 Từ mã nguồn (cần [Bun](https://bun.sh) 1.3+):
 
 ```sh
-git clone https://github.com/howznguyen/phonedesk && cd phonedesk
+git clone https://github.com/nguyentienanhvtth/phonedesk && cd phonedesk
 bun install
 bun run build          # build web và dist/phonedesk
 ./dist/phonedesk       # in ra địa chỉ cho điện thoại và mã PIN ghép đôi
 ```
 
 Mở địa chỉ đó trên điện thoại (cùng Wi-Fi), nhập PIN, rồi thêm trang vào màn hình chính để chạy toàn màn hình. Trang
-quản lý ở `http://localhost:7420/manage/` trên Mac. Ngôn ngữ đổi trong **Quản lý › Giao diện** (mặc định tiếng Anh).
+quản lý ở `http://localhost:7420/manage/`. Ngôn ngữ đổi trong **Quản lý › Giao diện** (mặc định tiếng Anh).
 
 Lần đầu một ô gửi phím tắt, macOS sẽ hỏi quyền **Trợ năng (Accessibility)**.
+
+### Build trên Windows
+
+Trên Windows 10/11, mở PowerShell và chạy:
+
+```powershell
+# Cài Bun (nếu chưa có)
+irm bun.sh/install.ps1 | iex
+
+# Clone và build
+git clone https://github.com/nguyentienanhvtth/phonedesk
+cd phonedesk
+bun install
+bun run build:win      # tạo dist/phonedesk-windows-x64.exe
+.\dist\phonedesk-windows-x64.exe
+```
+
+**Build bằng GitHub Actions:**
+
+Fork này có sẵn workflow `.github/workflows/build-windows.yml` để build tự động mỗi khi push code lên
+nhánh `main`. File `.exe` sẽ nằm trong tab Actions > Artifacts.
+
+**Về cập nhật tự động:**
+
+Fork này **tắt mặc định** kiểm tra cập nhật tự động. Bạn không bao giờ tự động tải bản cập nhật từ upstream (howznguyen/phonedesk).
+Nếu muốn bật kiểm tra cập nhật từ repo này, đặt `PHONEDESK_ENABLE_UPDATE_CHECK=1`.
+
+## Tính năng mới cho Windows
+
+### Widget GPU (NVIDIA)
+
+Với máy có card NVIDIA (GeForce hoặc RTX), PhoneDesk có thể hiện:
+- **Tải GPU** (0-100%)
+- **Nhiệt độ**
+- **VRAM** sử dụng / tổng
+- **Công suất** (W)
+- **Xung nhịp** GPU và bộ nhớ
+
+Yêu cầu: `nvidia-smi.exe` trong PATH (có sẵn khi cài driver NVIDIA).
+
+### Điều khiển âm thanh
+
+- **Âm lượng loa** và **tắt tiếng** như các nền tảng khác
+- **Tắt tiếng micro** (default capture device) - hữu ích khi chơi game hoặc họp online
+
+### Layout Gaming PC
+
+Có sẵn layout mẫu cho PC chơi game trong trang quản lý. Vào **Quản lý › Screens**, mở mục **Layout templates** ở panel bên trái, chọn **Gaming PC**:
+
+- Nút mở nhanh CS2 (`steam://rungameid/730`), Steam, Discord, Spotify
+- Điều khiển âm lượng và tắt tiếng micro (hotkey `Ctrl+Shift+M`)
+- Widget GPU, CPU, RAM, Network
+- 3 trang: Gaming, Stats, Keys với phím tắt thường dùng (Copy, Paste, Undo, Screenshot, Lock...)
+
+Layout mẫu giữ nguyên theme của bạn khi áp dụng.
 
 ## Tích hợp Claude Code (tùy chọn)
 

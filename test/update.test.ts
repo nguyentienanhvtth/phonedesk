@@ -1,12 +1,12 @@
 import "./_fetch";
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { gzipSync } from "node:zlib";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { assetName, bare, cmpVersions, latestTag, runUpdate, UpdateChecker } from "../src/update";
+import { assetName, bare, cmpVersions, latestTag, runUpdate, UpdateChecker, upstreamUpdatesDisabled, REPO } from "../src/update";
 import { explainBusyPort } from "../src/busy";
 import { defaultLayout } from "../src/config";
 
@@ -22,6 +22,42 @@ describe("versions", () => {
     expect(cmpVersions("0.2.0", "0.10.0")).toBe(-1);
     expect(cmpVersions("1.0.0-rc1", "1.0.0")).toBe(-1);
     expect(bare("v1.2.3")).toBe("1.2.3");
+  });
+});
+
+describe("environment variables for fork control", () => {
+  const originalEnv = { ...process.env };
+
+  afterEach(() => {
+    process.env.PHONEDESK_ENABLE_UPDATE_CHECK = originalEnv.PHONEDESK_ENABLE_UPDATE_CHECK;
+    process.env.PHONEDESK_REPO = originalEnv.PHONEDESK_REPO;
+  });
+
+  test("updates disabled by default in this fork (upstreamUpdatesDisabled returns true)", () => {
+    delete process.env.PHONEDESK_ENABLE_UPDATE_CHECK;
+    expect(upstreamUpdatesDisabled()).toBe(true);
+  });
+
+  test("PHONEDESK_ENABLE_UPDATE_CHECK=1 enables update checks", async () => {
+    process.env.PHONEDESK_ENABLE_UPDATE_CHECK = "1";
+    expect(upstreamUpdatesDisabled()).toBe(false);
+    let fetched = false;
+    const checker = new UpdateChecker({ latest: async () => { fetched = true; return "v1.0.0"; } });
+    const result = await checker.get(true);
+    expect(fetched).toBe(true);
+    expect(result.enabled).toBe(true);
+  });
+
+  test("REPO defaults to nguyentienanhvtth/phonedesk (this fork)", () => {
+    expect(REPO).toBe("nguyentienanhvtth/phonedesk");
+  });
+
+  test("UpdateChecker returns disabled when updates are off (default)", async () => {
+    delete process.env.PHONEDESK_ENABLE_UPDATE_CHECK;
+    const checker = new UpdateChecker();
+    const result = await checker.get(true);
+    expect(result.enabled).toBe(false);
+    expect(result.error).toContain("update checks disabled in this fork");
   });
 });
 

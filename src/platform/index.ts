@@ -3,7 +3,7 @@ import { createLinux } from "./linux";
 import { createWin32 } from "./win32";
 import type { Platform } from "./types";
 
-export type { Platform, SecretStore, AppCatalog } from "./types";
+export type { Platform, SecretStore, AppCatalog, MicState, MicChange } from "./types";
 
 /** The implementation for an OS id (anything that is not macOS or Windows gets the Linux, best-effort one). */
 export function createPlatform(id: NodeJS.Platform): Platform {
