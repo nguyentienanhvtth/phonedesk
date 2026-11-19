@@ -161,7 +161,7 @@ if (argv[0] === "doctor") {
     process.exit(0);
   }
   if (argv.includes("--json")) { console.log(JSON.stringify({ ...report, source: local ? "terminal" : "agent" }, null, 2)); process.exit(0); }
-  if (local) console.log(`! No PhoneDesk agent answered on port ${port}. These results are for THIS terminal app, not for the agent: macOS grants permissions per program.\n  Start PhoneDesk (or \`phonedesk service install\`) and run doctor again for the real answer.\n`);
+  if (local) console.log(`! No PhoneDesk agent answered on port ${port}. These results are for THIS terminal app, not for the agent${platform.id === "darwin" ? ": macOS grants permissions per program" : ""}.\n  Start PhoneDesk (or \`phonedesk service install\`) and run doctor again for the real answer.\n`);
   console.log(d.formatReport(report, { color: !!process.stdout.isTTY }));
   process.exit(report.items.some((i) => i.status === "missing" || i.status === "denied") ? 1 : 0);
 }

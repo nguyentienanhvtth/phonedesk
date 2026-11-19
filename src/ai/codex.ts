@@ -123,7 +123,7 @@ export async function fetchCodexQuota(dir = codexDir(), now = Date.now()): Promi
   } catch {
     // unreadable: report below
   }
-  if (!best) return { id: "codex", name: "Codex", windows: [], error: t("No Codex quota data yet (use Codex once on this Mac)"), updatedAt: now };
+  if (!best) return { id: "codex", name: "Codex", windows: [], error: t("No Codex quota data yet (use Codex once on this computer)"), updatedAt: now };
   const plan = best.plan ? best.plan[0]!.toUpperCase() + best.plan.slice(1) : undefined;
   return { id: "codex", name: "Codex", plan, windows: toQuotaWindows(best, now), updatedAt: now };
 }

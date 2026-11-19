@@ -231,7 +231,7 @@ export const PROVIDER_LABEL: Record<string, string> = { claude: "Claude", codex:
 
 export const WIDGET_HINT: Record<WidgetKind, string> = {
   clock: "Time and date", nowplaying: "Current track", cpu: "CPU usage (click to see processes)", memory: "Memory in use",
-  uptime: "How long the Mac has been running", load: "System load", network: "Network speed", quota: "Claude / Codex / Antigravity quota", sessions: "Running AI sessions", entity: "Home Assistant device", weather: "Weather", value: "Value pushed from outside (webhook)", notifications: "Recent notifications",
+  uptime: "How long the computer has been running", load: "System load", network: "Network speed", quota: "Claude / Codex / Antigravity quota", sessions: "Running AI sessions", entity: "Home Assistant device", weather: "Weather", value: "Value pushed from outside (webhook)", notifications: "Recent notifications",
   gpu: "NVIDIA GPU load, temperature and memory", cputemp: "CPU temperature (Windows: run LibreHardwareMonitor)", volume: "Volume slider", mic: "Microphone slider",
 };
 

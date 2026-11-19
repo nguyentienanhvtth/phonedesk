@@ -100,7 +100,7 @@ function PairingCard() {
                   <span>{t("Use IP address")}</span>
                   <Switch checked={useIp} onCheckedChange={setUseIp} aria-label={t("Use IP address")} />
                 </label>
-                <p className="text-[11.5px] leading-snug text-muted-foreground">{t("Use the .local name so you do not have to pair again when the Mac's IP changes.")}</p>
+                <p className="text-[11.5px] leading-snug text-muted-foreground">{t("Use the .local name so you do not have to pair again when the computer's IP changes.")}</p>
               </div>
             )}
             <div className="flex gap-2">

@@ -21,7 +21,13 @@ export function normalizeAudioSessions(raw: unknown): { supported: boolean; sess
     const s = rec(x);
     if (typeof s.app !== "string" || !s.app) continue;
     const level = typeof s.level === "number" && Number.isFinite(s.level) ? Math.max(0, Math.min(100, Math.round(s.level))) : 0;
-    sessions.push({ pid: typeof s.pid === "number" ? s.pid : 0, app: s.app, level, muted: s.muted === true, active: s.active === true });
+    const row = { pid: typeof s.pid === "number" ? s.pid : 0, app: s.app, level, muted: s.muted === true, active: s.active === true };
+    // one row per program (an older agent may still send one per Windows audio session)
+    const k = s.app.toLowerCase().replace(/\.exe$/, "");
+    const i = sessions.findIndex((x) => x.app.toLowerCase().replace(/\.exe$/, "") === k);
+    if (i < 0) sessions.push(row);
+    else if (row.active && !sessions[i]!.active) sessions[i] = { ...row, muted: row.muted && sessions[i]!.muted };
+    else sessions[i] = { ...sessions[i]!, muted: sessions[i]!.muted && row.muted };
   }
   return { supported: r.supported !== false, sessions };
 }

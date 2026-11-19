@@ -246,7 +246,7 @@ export const api = {
     const o = rec(await request<unknown>("/api/about"));
     const version = str(o.version);
     if (!version) throw new ApiError(t("The agent did not report a version"), 0);
-    const repo = (str(o.repo) ?? str(o.repository) ?? str(o.homepage) ?? "https://github.com/howznguyen/phonedesk").replace(/(\.git)?\/*$/, "");
+    const repo = (str(o.repo) ?? str(o.repository) ?? str(o.homepage) ?? "https://github.com/nguyentienanhvtth/phonedesk").replace(/(\.git)?\/*$/, "");
     const d = o.buildDate ?? o.builtAt ?? o.built;
     return { version: version.replace(/^v/, ""), commit: str(o.commit)?.replace(/-dirty$/, "").slice(0, 7), dirty: o.dirty === true || /dirty/.test(str(o.commit) ?? "") || undefined, buildDate: typeof d === "number" ? new Date(d < 1e12 ? d * 1000 : d).toISOString() : str(d), platform: str(o.platform), arch: str(o.arch), repo };
   },

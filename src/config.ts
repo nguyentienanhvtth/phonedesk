@@ -2,6 +2,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { copyFile, mkdir, readFile, writeFile, rename, unlink } from "node:fs/promises";
 import { ICON_ALIASES } from "../web/shared/icons";
+import { osId } from "./platform";
 import { appName, macroSteps, pushOptions, validateRules, weatherOptions, type MacroStep, type PushOptions, type Rule, type WeatherOptions } from "./automation";
 export type { MacroStep, PushOptions, Rule, WeatherOptions } from "./automation";
 
@@ -215,7 +216,28 @@ const DEVICES_FILE = join(HOME, "devices.json");
 export const ACTION_TYPES = ["open", "hotkey", "type", "shell", "media", "volume", "set-volume", "mic", "app-volume", "output-device", "page", "sound", "sound-stop", "hass", "macro"] as const;
 export const WIDGET_KINDS: WidgetKind[] = ["clock", "cpu", "memory", "uptime", "load", "network", "nowplaying", "quota", "sessions", "entity", "weather", "value", "notifications", "gpu", "volume", "mic", "cputemp"];
 
-export function defaultLayout(): Layout {
+/**
+ * The first-run layout. Written with macOS shortcuts; on Windows the few that have no Windows meaning are swapped:
+ * Screenshot is Win+Shift+S, Lock asks Windows to lock (Win+L cannot be sent), and the load average (always 0 on
+ * Windows) becomes the CPU temperature.
+ */
+export function defaultLayout(platform: string = osId()): Layout {
+  const l = macDefaultLayout();
+  if (platform !== "win32") return l;
+  for (const p of l.pages)
+    p.items = p.items.map((it): Item => {
+      if (it.id === "b-shot") return { ...it, action: { type: "hotkey", keys: "win+shift+s" } } as Item;
+      if (it.id === "b-lock") return { ...it, action: { type: "shell", command: "rundll32.exe user32.dll,LockWorkStation" } } as Item;
+      if (it.kind === "widget" && it.widget === "load") {
+        const { metric: _m, ...rest } = it as Item & { metric?: unknown };
+        return { ...rest, id: "w-cputemp", widget: "cputemp" } as Item;
+      }
+      return it;
+    });
+  return l;
+}
+
+function macDefaultLayout(): Layout {
   return {
     version: 1,
     theme: { mode: "dark", orientation: "landscape", tileStyle: "ios", iconStroke: 2.25 },

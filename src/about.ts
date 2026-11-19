@@ -3,7 +3,7 @@ import pkg from "../package.json" with { type: "json" };
 import { BUILD_INFO, DECK_BUILD } from "./assets.gen";
 import { platform } from "./platform";
 
-export const REPO_URL = "https://github.com/howznguyen/phonedesk";
+export const REPO_URL = "https://github.com/nguyentienanhvtth/phonedesk";
 
 export interface About {
   name: string;

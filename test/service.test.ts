@@ -168,7 +168,10 @@ describe("hooks that point at an older binary", () => {
   test("repointCommand keeps the arguments and marker; no-op when already right; ignores other commands", () => {
     expect(S.repointCommand("'/old/phonedesk' hook claude --port 7460 --home '/x y' # phonedesk hook", NEW)).toBe("'/h/.phonedesk/bin/phonedesk' hook claude --port 7460 --home '/x y' # phonedesk hook");
     expect(S.repointCommand("'/bun' '/src/index.ts' hook claude-ask # phonedesk hook claude-ask", NEW)).toBe("'/h/.phonedesk/bin/phonedesk' hook claude-ask # phonedesk hook claude-ask");
-    expect(S.repointCommand("'/h/.phonedesk/bin/phonedesk' hook codex # phonedesk hook", NEW)).toBeNull();
+    expect(S.repointCommand("'/h/.phonedesk/bin/phonedesk' hook codex # phonedesk hook", NEW, "linux")).toBeNull();
+    // Windows: Codex hooks run in PowerShell, so the same command is rewritten into the `& '…'` form, which then stays put
+    expect(S.repointCommand("'/h/.phonedesk/bin/phonedesk' hook codex # phonedesk hook", NEW, "win32")).toBe("& '/h/.phonedesk/bin/phonedesk' hook codex # phonedesk hook");
+    expect(S.repointCommand("& '/h/.phonedesk/bin/phonedesk' hook codex # phonedesk hook", NEW, "win32")).toBeNull();
     expect(S.repointCommand("echo hi", NEW)).toBeNull();
     expect(S.repointCommand("'/bin/x' hook claude # phonedesk hook", ["/bun", "/a b/index.ts"])).toBe("'/bun' '/a b/index.ts' hook claude # phonedesk hook");
   });

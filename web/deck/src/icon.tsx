@@ -12,11 +12,11 @@ export function setIconStroke(v: number | undefined) {
   strokeW = v && v >= 1 && v <= 3 ? v : DEFAULT_STROKE
 }
 
-export function Icon(props: { name: string; size?: number; weight?: 'Outline' | 'Filled'; class?: string }) {
+export function Icon(props: { name: string; size?: number; weight?: 'Outline' | 'Filled'; class?: string; style?: { [k: string]: string } }) {
   const size = props.size || 20
   const svg = iconSvg(props.name, { size, weight: props.weight, stroke: strokeW })
   if (!svg) return null
-  return <span class={'pd-svg ' + (props.class || '')} style={{ width: size + 'px', height: size + 'px' }} aria-hidden="true" dangerouslySetInnerHTML={{ __html: svg }} />
+  return <span class={'pd-svg ' + (props.class || '')} style={Object.assign({ width: size + 'px', height: size + 'px' }, props.style || {})} aria-hidden="true" dangerouslySetInnerHTML={{ __html: svg }} />
 }
 
 /** Emoji (astral planes, or the BMP symbol/dingbat blocks) read bigger than letters. No \p{} escapes: Safari 12 cannot parse them. */

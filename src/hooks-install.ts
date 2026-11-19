@@ -1,4 +1,4 @@
-import { platform } from "./platform";
+import { osId, platform } from "./platform";
 import { basename, dirname, join } from "node:path";
 import { homedir } from "node:os";
 import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
@@ -15,6 +15,8 @@ export function hookConfigPath(tool: HookTool): string {
 }
 
 const shq = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
+/** PowerShell single quotes: a quote inside is doubled. */
+const psq = (s: string) => `'${s.replace(/'/g, "''")}'`;
 
 /**
  * Absolute command for the hook. Compiled binary: `'<exe>' hook <tool>`; source mode: `'<bun>' '<abs>/src/index.ts' hook <tool>`.
@@ -22,17 +24,21 @@ const shq = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
  */
 export function hookCommand(
   tool: HookTool,
-  opts: { execPath?: string; indexPath?: string; port?: number; home?: string; defaultHome?: string } = {},
+  opts: { execPath?: string; indexPath?: string; port?: number; home?: string; defaultHome?: string; os?: string } = {},
 ): string {
   const exe = platform.hookPath(opts.execPath ?? process.execPath);
   const isBun = /^bun(\.exe)?$/i.test(basename(exe));
   const index = platform.hookPath(opts.indexPath ?? join(import.meta.dir, "index.ts"));
-  const base = isBun ? `${shq(exe)} ${shq(index)}` : shq(exe);
+  // Claude Code runs hooks with bash everywhere (Git Bash on Windows). Codex on Windows runs them in PowerShell, where a
+  // quoted program name needs the call operator and quotes are escaped by doubling; `#` is a comment in both shells.
+  const ps = tool === "codex" && (opts.os ?? osId()) === "win32";
+  const q = ps ? psq : shq;
+  const base = (ps ? "& " : "") + (isBun ? `${q(exe)} ${q(index)}` : q(exe));
   // Point the hook at the agent that installed it: without these it would call the default port with the
   // default secret, and an agent on another port or PHONEDESK_HOME would never see the request.
   let args = "";
   if (opts.port !== undefined && opts.port !== 7420) args += ` --port ${opts.port}`;
-  if (opts.home && opts.home !== (opts.defaultHome ?? join(homedir(), ".phonedesk"))) args += ` --home ${shq(platform.hookPath(opts.home))}`;
+  if (opts.home && opts.home !== (opts.defaultHome ?? join(homedir(), ".phonedesk"))) args += ` --home ${q(platform.hookPath(opts.home))}`;
   return `${base} hook ${tool}${args} # ${HOOK_MARKER}`;
 }
 

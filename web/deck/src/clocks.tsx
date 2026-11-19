@@ -153,7 +153,7 @@ interface Sub {
   color?: string
 }
 
-const ampm = (p: Parts) => (p.h < 12 ? 'SA' : 'CH')
+const ampm = (p: Parts) => (getLang() === 'vi' ? (p.h < 12 ? 'SA' : 'CH') : p.h < 12 ? 'AM' : 'PM')
 const hm = (s: Sub) => s.hr * 100 + s.p.m
 const hmFormat = (n: number) => pad2(Math.floor(n / 100)) + ':' + pad2(n % 100)
 

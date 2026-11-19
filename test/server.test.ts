@@ -117,7 +117,7 @@ describe("http", () => {
     const { DECK_BUILD } = await import("../src/assets.gen");
     const a = await (await fetch(`${base}/api/about`)).json() as any;
     const pkg = JSON.parse(readFileSync(join(import.meta.dir, "..", "package.json"), "utf8"));
-    expect(a).toMatchObject({ name: "PhoneDesk", version: pkg.version, build: DECK_BUILD, repo: "https://github.com/howznguyen/phonedesk", license: "MIT" });
+    expect(a).toMatchObject({ name: "PhoneDesk", version: pkg.version, build: DECK_BUILD, repo: "https://github.com/nguyentienanhvtth/phonedesk", license: "MIT" });
     expect(typeof a.commit).toBe("string");
     expect(typeof a.dirty).toBe("boolean");
     expect(Number.isNaN(Date.parse(a.builtAt))).toBe(false);

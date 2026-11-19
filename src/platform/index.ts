@@ -17,6 +17,8 @@ export function createPlatform(id: NodeJS.Platform): Platform {
  * PhoneDesk goes through this object. Created lazily so importing a module never loads another OS's code paths.
  */
 let current: Platform | undefined;
+/** The OS id ("win32", "darwin", "linux") without creating the platform object: for defaults that differ per OS. */
+export const osId = (): NodeJS.Platform => process.platform;
 export const platform: Platform = new Proxy({} as Platform, {
   get(_t, key) {
     current ??= createPlatform(process.platform);
