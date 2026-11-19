@@ -1,6 +1,6 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { mkdir, readFile, writeFile, rename } from "node:fs/promises";
+import { copyFile, mkdir, readFile, writeFile, rename, unlink } from "node:fs/promises";
 import { ICON_ALIASES } from "../web/shared/icons";
 import { macroSteps, pushOptions, validateRules, weatherOptions, type MacroStep, type PushOptions, type Rule, type WeatherOptions } from "./automation";
 export type { MacroStep, PushOptions, Rule, WeatherOptions } from "./automation";
@@ -41,7 +41,8 @@ export type SoundMode = "overlap" | "restart" | "toggle";
 export const SOUND_ID_RE = /^snd:[a-f0-9]{16}$/;
 
 /** nowplaying = current track + transport + volume (agent sends {type:"media"}); network = rx/tx rates; gpu = NVIDIA GPU stats via nvidia-smi. */
-export type WidgetKind = "clock" | "cpu" | "memory" | "uptime" | "load" | "network" | "nowplaying" | "quota" | "sessions" | "entity" | "weather" | "value" | "notifications" | "gpu";
+/** volume = slider for system volume; mic = slider for mic input level (Windows). */
+export type WidgetKind = "clock" | "cpu" | "memory" | "uptime" | "load" | "network" | "nowplaying" | "quota" | "sessions" | "entity" | "weather" | "value" | "notifications" | "gpu" | "volume" | "mic";
 
 /** AI coding tools PhoneDesk reads quotas/sessions from. A "quota" widget shows one provider (item.provider). */
 export type AiProvider = "claude" | "codex" | "antigravity" | "opencode" | "grok";
@@ -197,7 +198,7 @@ const LAYOUT_FILE = join(HOME, "layout.json");
 const DEVICES_FILE = join(HOME, "devices.json");
 
 export const ACTION_TYPES = ["open", "hotkey", "type", "shell", "media", "volume", "page", "sound", "sound-stop", "hass", "macro"] as const;
-export const WIDGET_KINDS: WidgetKind[] = ["clock", "cpu", "memory", "uptime", "load", "network", "nowplaying", "quota", "sessions", "entity", "weather", "value", "notifications", "gpu"];
+export const WIDGET_KINDS: WidgetKind[] = ["clock", "cpu", "memory", "uptime", "load", "network", "nowplaying", "quota", "sessions", "entity", "weather", "value", "notifications", "gpu", "volume", "mic"];
 
 export function defaultLayout(): Layout {
   return {
@@ -289,11 +290,41 @@ async function readJson<T>(file: string): Promise<T | undefined> {
   }
 }
 
+/** Errors Windows gives for a rename onto a file that is briefly open (antivirus scan, indexer, an editor, Bun itself). */
+const RETRY_RENAME = new Set(["EPERM", "EACCES", "EBUSY", "EEXIST", "ENOTEMPTY"]);
+
+/**
+ * Replaces `file` with `tmp`. A plain rename is atomic on macOS/Linux; on Windows it can fail while something holds the
+ * target open, so it is retried a few times and, as a last resort, the contents are copied over the target.
+ */
+export async function replaceFile(tmp: string, file: string, ops: { rename?: typeof rename; copyFile?: typeof copyFile; sleep?: (ms: number) => Promise<unknown> } = {}): Promise<void> {
+  const ren = ops.rename ?? rename;
+  const cp = ops.copyFile ?? copyFile;
+  const sleep = ops.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
+  let last: any;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    try {
+      await ren(tmp, file);
+      return;
+    } catch (err: any) {
+      last = err;
+      if (!RETRY_RENAME.has(err?.code)) throw err;
+      await sleep(25 * 2 ** attempt);
+    }
+  }
+  try {
+    await cp(tmp, file);
+    await unlink(tmp).catch(() => {});
+  } catch (err: any) {
+    throw new Error(`cannot replace ${file}: ${last?.code ?? ""} ${last?.message ?? last} / ${err?.message ?? err}`.trim());
+  }
+}
+
 async function writeJson(file: string, data: unknown): Promise<void> {
   await mkdir(HOME, { recursive: true, mode: 0o700 });
   const tmp = `${file}.tmp`;
   await writeFile(tmp, JSON.stringify(data, null, 2) + "\n", { mode: 0o600 });
-  await rename(tmp, file);
+  await replaceFile(tmp, file);
 }
 
 export async function loadLayout(): Promise<Layout> {

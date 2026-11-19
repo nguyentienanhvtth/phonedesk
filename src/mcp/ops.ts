@@ -6,7 +6,7 @@ const fail = (reason: string): OpResult => ({ ok: false, reason });
 
 /** Preferred size of a widget (columns x rows), as the management page uses. */
 export const WIDGET_SIZE: Record<WidgetKind, [number, number]> = {
-  clock: [4, 2], nowplaying: [4, 2], cpu: [2, 1], memory: [2, 1], uptime: [2, 1], load: [2, 1], network: [2, 1], quota: [2, 2], sessions: [2, 3], entity: [2, 1], value: [2, 1], weather: [2, 2], notifications: [2, 2], gpu: [2, 1],
+  clock: [4, 2], nowplaying: [4, 2], cpu: [2, 1], memory: [2, 1], uptime: [2, 1], load: [2, 1], network: [2, 1], quota: [2, 2], sessions: [2, 3], entity: [2, 1], value: [2, 1], weather: [2, 2], notifications: [2, 2], gpu: [2, 1], volume: [2, 1], mic: [2, 1],
 };
 
 export const THEME_KEYS = ["mode", "accent", "background", "tile", "radius", "gap", "fontScale", "tileStyle", "iconScale", "iconStroke", "showLabels", "text", "orientation"];

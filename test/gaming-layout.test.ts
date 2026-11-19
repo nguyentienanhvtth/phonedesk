@@ -12,7 +12,7 @@ describe("Gaming PC layout", () => {
     const layout = gamingPcLayout();
     expect(layout.pages).toHaveLength(3);
     expect(layout.pages.map((p) => p.id)).toEqual(["gaming", "stats", "keys"]);
-    expect(layout.pages.map((p) => p.name)).toEqual(["Gaming", "Stats", "Keys"]);
+    expect(layout.pages.map((p) => p.name)).toEqual(["Controls", "Stats", "Keys"]);
   });
 
   test("gaming page has CS2, Steam, Discord, Spotify buttons", () => {
@@ -25,14 +25,12 @@ describe("Gaming PC layout", () => {
     expect(labels).toContain("Spotify");
   });
 
-  test("gaming page has volume controls and mic mute", () => {
+  test("gaming page has volume and mic slider widgets", () => {
     const layout = gamingPcLayout();
     const gaming = layout.pages.find((p) => p.id === "gaming")!;
-    const labels = gaming.items.filter((i) => i.kind === "button").map((i: any) => i.label);
-    expect(labels).toContain("Vol -");
-    expect(labels).toContain("Vol +");
-    expect(labels).toContain("Mute");
-    expect(labels).toContain("Mic Mute");
+    const widgets = gaming.items.filter((i) => i.kind === "widget").map((i: any) => i.widget);
+    expect(widgets).toContain("volume");
+    expect(widgets).toContain("mic");
   });
 
   test("gaming page has GPU, CPU, memory widgets", () => {

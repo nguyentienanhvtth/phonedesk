@@ -8,10 +8,12 @@ import { DeckClient, savedDeviceName, type ClientState } from './client'
 import { setTempUnit } from './temp'
 import { shade, applyTheme, readableOn, tint } from './theme'
 import { PROVIDER_COLOR } from './ai'
+import { isIOSSafari } from './platform'
 import { PermissionSheet, ProcessSheet, QuestionSheet } from './sheets'
 import type { QuestionRequest, WeatherData, PushedValue, Notice, GotoReq, HassEntity, HassState, IconAssets, AiData, Item, Layout, Media, MediaCommand, Orientation, Page, Stats, TileStyle } from './types'
 
 export { Icon }
+import { pageMove, pageResize } from '../../shared/reflow'
 import './deck.css'
 
 export interface DeckProps {
@@ -421,6 +423,7 @@ function Tile(props: {
   assets?: IconAssets
   onMedia: (c: MediaCommand, app?: string) => Promise<unknown> | void
   onVolume: (v: { level: number } | { muted: boolean }) => Promise<unknown> | void
+  onMic?: (v: { level: number } | { muted: boolean }) => Promise<unknown> | void
   sound?: { at: number; durMs?: number }
   hassEnt?: HassEntity
   hassForceOn?: boolean
@@ -578,6 +581,7 @@ function Tile(props: {
           preview={props.preview}
           onMedia={props.onMedia}
           onVolume={props.onVolume}
+          onMic={props.onMic}
         />
         {handle}
       </div>
@@ -750,6 +754,7 @@ function PairForm(props: { client: DeckClient; notice: string; pin?: string }) {
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const [scanning, setScanning] = useState(false)
+  const showA2HS = isIOSSafari()
   const doPair = (code: string) => {
     if (code.length < 6) {
       setErr(t('The PIN has 6 digits.'))
@@ -815,6 +820,18 @@ function PairForm(props: { client: DeckClient; notice: string; pin?: string }) {
           {msg}
         </p>
         <p class="pd-hint">{t('Open the Manage page on your computer, Devices tab, to see the PIN / QR code')}</p>
+        {showA2HS ? (
+          <div class="pd-a2hs">
+            <Icon name="device-mobile-plus" size={18} />
+            <span>
+              <b>{t('Add to Home Screen for the best experience')}</b>
+              <br />
+              {t('Tap {0} then "Add to Home Screen"', '⬆').split('⬆').map((part, i) =>
+                i === 0 ? <span key={i}>{part}<Icon name="share" size={16} style={{ verticalAlign: '-3px', margin: '0 2px' }} /></span> : part
+              )}
+            </span>
+          </div>
+        ) : null}
       </form>
     </div>
   )
@@ -836,6 +853,8 @@ interface Drag {
   tw: number // target span
   th: number
   valid: boolean
+  /** Where the other tiles end up when this drop pushes them aside (cell x/y by id); drawn live while dragging. */
+  place?: { [id: string]: { x: number; y: number } }
 }
 
 const orientOf = (l: Layout | null): Orientation => (l && l.theme && l.theme.orientation) || 'landscape'
@@ -914,6 +933,12 @@ export function Deck(props: DeckProps) {
       if (!r.ok) showToast(r.error || t('Action failed'))
     })
   }
+  const onMic = (v: { level: number } | { muted: boolean }) => {
+    if (preview) return
+    return client.mic(v).then((r) => {
+      if (!r.ok) showToast(r.error || t('Action failed'))
+    })
+  }
   const boxRef = useRef(box)
   boxRef.current = box
   const swiped = useRef(0)
@@ -944,16 +969,26 @@ export function Deck(props: DeckProps) {
     : undefined
 
   useEffect(() => {
+    const timers: number[] = []
+    const set = () => setVp((v) => (v.w === window.innerWidth && v.h === window.innerHeight ? v : { w: window.innerWidth, h: window.innerHeight }))
     const on = () => {
-      const set = () => setVp((v) => (v.w === window.innerWidth && v.h === window.innerHeight ? v : { w: window.innerWidth, h: window.innerHeight }))
       set()
-      window.setTimeout(set, 300) // iOS 12 reports the new size a tick late
+      // iOS reports the new size late (a tick on iOS 12; a Home Screen app launched in landscape or Safari's bars
+      // collapsing can take longer): re-read so the deck never keeps a stale size (a gap on the right/bottom)
+      timers.push(window.setTimeout(set, 300), window.setTimeout(set, 800))
     }
+    const vv = (window as any).visualViewport
     window.addEventListener('resize', on)
     window.addEventListener('orientationchange', on)
+    window.addEventListener('pageshow', on)
+    if (vv) vv.addEventListener('resize', on)
+    on()
     return () => {
+      timers.forEach((t) => clearTimeout(t))
       window.removeEventListener('resize', on)
       window.removeEventListener('orientationchange', on)
+      window.removeEventListener('pageshow', on)
+      if (vv) vv.removeEventListener('resize', on)
     }
   }, [])
 
@@ -1216,7 +1251,7 @@ export function Deck(props: DeckProps) {
   useEffect(() => {
     const s = stripRef.current
     if (!s) return
-    const on = () => { touching.current = true; window.clearTimeout(pendScroll.current); if (startIdx.current < 0 || !settleT.current) startIdx.current = idxRef.current }
+    const on = () => { touching.current = true; window.clearTimeout(pendScroll.current); window.clearTimeout(settleT.current); startIdx.current = idxRef.current }
     const off = () => { touching.current = false }
     s.addEventListener('touchstart', on, { passive: true })
     s.addEventListener('touchend', off, { passive: true })
@@ -1290,8 +1325,7 @@ export function Deck(props: DeckProps) {
       let i = startI
       if (dx < -40 || (dx < -15 && v < -0.4)) i = Math.min(pagesRef.current.length - 1, i + 1)
       else if (dx > 40 || (dx > 15 && v > 0.4)) i = Math.max(0, i - 1)
-      if (i !== idxRef.current) goTo(i, true)
-      else s.scrollLeft = i * w
+      goTo(i, true)
     }
     const click = (e: Event) => {
       if (Date.now() - swiped.current < 350) { e.stopPropagation(); e.preventDefault() }
@@ -1600,8 +1634,18 @@ export function Deck(props: DeckProps) {
       tw = Math.min(cols - it.px, Math.max(1, Math.round((rx - it.px * step + boxRef.current.gap) / step)))
       th = Math.min(rows - it.py, Math.max(1, Math.round((ry - it.py * step + boxRef.current.gap) / step)))
     }
-    if (valid && overlaps(items, it.id, tx, ty, tw, th)) valid = false
-    return Object.assign({}, d, { rx, ry, tx, ty, tw, th, valid })
+    // Landing on other tiles pushes them aside (the same reflow rules the manage page applies on drop); only a drop
+    // that leaves a pushed tile nowhere to go is refused (red target).
+    let place: Drag['place'] = undefined
+    if (valid && overlaps(items, it.id, tx, ty, tw, th)) {
+      const grid = { id: page.id, columns: cols, rows, items: items.map((o) => ({ id: o.id, x: o.px, y: o.py, w: o.pw, h: o.ph })) }
+      const res = d.kind === 'move' ? pageMove(grid, it.id, tx, ty) : pageResize(grid, it.id, tw, th)
+      if (res.ok) {
+        place = {}
+        for (const o of res.items) if (o.id !== it.id) place[o.id] = { x: o.x || 0, y: o.y || 0 }
+      } else valid = false
+    }
+    return Object.assign({}, d, { rx, ry, tx, ty, tw, th, valid, place })
   }
   const onDown = (e: PointerEvent, page: Page, item: Placed, kind: 'move' | 'resize') => {
     if (!preview || (e.button !== undefined && e.button !== 0)) return
@@ -1760,8 +1804,10 @@ export function Deck(props: DeckProps) {
                   const rows = Math.max(1, (p.rows || 4) | 0)
                   const cell = cellSize(p, box)
                   const step = cell + box.gap
-                  const items = placeItems(p)
                   const dg = drag && drag.pageId === p.id ? drag : null
+                  const placed = placeItems(p)
+                  // while dragging: tiles the drop would push aside are drawn where they would go
+                  const items = dg && dg.moved && dg.valid && dg.place ? placed.map((o) => (dg.place && dg.place[o.id] && o.id !== dg.itemId ? Object.assign({}, o, { px: dg.place[o.id].x, py: dg.place[o.id].y }) : o)) : placed
                   // empty slots (preview only): every cell no tile covers
                   const slots = []
                   if (preview && !pv.clean) {
@@ -1798,7 +1844,7 @@ export function Deck(props: DeckProps) {
                             fx={fx[p.id + '/' + it.id] || ''}
                             selected={preview && pv.selectedId === it.id}
                             dragging={!!dg && dg.itemId === it.id && dg.kind === 'move'}
-                            showHandle={preview && pv.selectedId === it.id}
+                            showHandle={preview}
                             tw={cell * it.pw + box.gap * (it.pw - 1)}
                             th={cell * it.ph + box.gap * (it.ph - 1)}
                             scale={scale}
@@ -1813,6 +1859,7 @@ export function Deck(props: DeckProps) {
                             last={st.lastMedia}
                             onMedia={onMedia}
                             onVolume={onVolume}
+                            onMic={onMic}
                             hassEnt={it.entity && hass ? hass.entities[it.entity.id] : undefined}
                             hassForceOn={it.entity && opt[it.entity.id] ? opt[it.entity.id].on : undefined}
                             hassConnected={hass ? hass.connected : true}

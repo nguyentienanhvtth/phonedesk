@@ -10,6 +10,7 @@ import { EntityTile } from './entity'
 import { NotificationsTile, ValueTile, WeatherTile } from './automation'
 import { AnimatedNumber, BAND_COLOR, DeltaPill, Gauge, type Band } from './knowns'
 import { tint } from './theme'
+import { VolumeWidget, MicWidget } from './sliders'
 import type { AiData, ClockOptions, MetricOptions, QuotaOptions, EntityOptions, WeatherOptions, PushOptions, WeatherData, PushedValue, Notice, HassEntity, IconAssets, Media, MediaCommand, Stats, WidgetKind } from './types'
 
 /** Live widgets: clock, cpu, memory, network, load, uptime, nowplaying. Sizes come from the tile (tw/th in px). */
@@ -105,6 +106,7 @@ export interface WidgetProps {
   preview: boolean
   onMedia: (c: MediaCommand, app?: string) => Promise<unknown> | void
   onVolume: (v: { level: number } | { muted: boolean }) => Promise<unknown> | void
+  onMic?: (v: { level: number } | { muted: boolean }) => Promise<unknown> | void
 }
 
 export function Widget(props: WidgetProps) {
@@ -116,6 +118,8 @@ export function Widget(props: WidgetProps) {
   if (props.kind === 'nowplaying') return <NowPlayingTile media={props.media} last={props.last} stats={props.stats} tw={props.tw} th={props.th} scale={props.scale} showLabel={props.showLabel} textColor={props.textColor} onMedia={props.onMedia} onVolume={props.onVolume} />
   if (props.kind === 'quota') return <QuotaWidget {...(props as AiWidgetProps)} />
   if (props.kind === 'sessions') return <SessionsWidget {...(props as AiWidgetProps)} />
+  if (props.kind === 'volume') return <VolumeWidget stats={props.stats} tw={props.tw} th={props.th} scale={props.scale} showLabel={props.showLabel} color={props.color} textColor={props.textColor} onVolume={props.onVolume} />
+  if (props.kind === 'mic' && props.onMic) return <MicWidget stats={props.stats} tw={props.tw} th={props.th} scale={props.scale} showLabel={props.showLabel} color={props.color} textColor={props.textColor} onMic={props.onMic} />
   return <Metric {...props} />
 }
 

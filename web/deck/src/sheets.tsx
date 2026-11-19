@@ -147,6 +147,9 @@ export function ProcessSheet(props: { client: DeckClient; initial: 'cpu' | 'mem'
   const [sort, setSort] = useState<'cpu' | 'mem'>(props.initial)
   const [list, setList] = useState<ProcInfo[] | null>(null)
   const [err, setErr] = useState('')
+  const panelRef = useRef<HTMLDivElement>(null)
+  const dragRef = useRef({ startY: 0, startTop: 0, dragging: false })
+
   useEffect(() => {
     let dead = false
     const load = () =>
@@ -164,11 +167,60 @@ export function ProcessSheet(props: { client: DeckClient; initial: 'cpu' | 'mem'
       clearInterval(iv)
     }
   }, [sort])
+
+  useEffect(() => {
+    const panel = panelRef.current
+    if (!panel) return
+
+    const onTouchStart = (e: TouchEvent) => {
+      const listEl = panel.querySelector('.pd-proc__list') as HTMLElement | null
+      const atTop = !listEl || listEl.scrollTop <= 0
+      if (!atTop) return
+      dragRef.current = { startY: e.touches[0].clientY, startTop: 0, dragging: true }
+      panel.style.transition = 'none'
+    }
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!dragRef.current.dragging) return
+      const dy = e.touches[0].clientY - dragRef.current.startY
+      if (dy > 0) {
+        panel.style.transform = `translateY(${dy}px)`
+        e.preventDefault()
+      }
+    }
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (!dragRef.current.dragging) return
+      dragRef.current.dragging = false
+      panel.style.transition = ''
+      const dy = e.changedTouches[0].clientY - dragRef.current.startY
+      if (dy > 80) {
+        panel.style.transform = `translateY(100%)`
+        setTimeout(props.onClose, 150)
+      } else {
+        panel.style.transform = ''
+      }
+    }
+
+    panel.addEventListener('touchstart', onTouchStart, { passive: true })
+    panel.addEventListener('touchmove', onTouchMove, { passive: false })
+    panel.addEventListener('touchend', onTouchEnd, { passive: true })
+    panel.addEventListener('touchcancel', onTouchEnd, { passive: true })
+
+    return () => {
+      panel.removeEventListener('touchstart', onTouchStart)
+      panel.removeEventListener('touchmove', onTouchMove)
+      panel.removeEventListener('touchend', onTouchEnd)
+      panel.removeEventListener('touchcancel', onTouchEnd)
+    }
+  }, [props.onClose])
+
   // memory as % (small non-integer values) vs bytes: the agent shape is {pid,name,cpu,mem}
   const percent = !!list && list.length > 0 && Math.max.apply(null, list.map((p) => p.mem)) <= 100 && list.some((p) => p.mem % 1 !== 0)
   return (
     <div class="pd-modal" role="dialog" aria-label={t('Processes')} onClick={props.onClose}>
-      <div class="pd-modal__panel pd-modal__panel--proc" onClick={(e) => e.stopPropagation()}>
+      <div class="pd-modal__panel pd-modal__panel--proc" ref={panelRef} onClick={(e) => e.stopPropagation()}>
+        <div class="pd-proc__drag" />
         <div class="pd-proc__head">
           <b>{t('Processes')}</b>
           <span class="pd-spacer" />
@@ -181,7 +233,7 @@ export function ProcessSheet(props: { client: DeckClient; initial: 'cpu' | 'mem'
             </button>
           </div>
           <button type="button" class="pd-iconbtn" aria-label={t('Close')} onClick={props.onClose}>
-            <Icon name="x" size={18} />
+            <Icon name="x" size={22} />
           </button>
         </div>
         <div class="pd-proc__list">

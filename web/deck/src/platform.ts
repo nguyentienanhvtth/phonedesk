@@ -23,3 +23,20 @@ export function formatHotkey(keys: string, platform?: string): string {
   })
   return parts.join(mac ? '' : '+')
 }
+
+/** Returns true when running as a standalone PWA (added to home screen), not in the browser. */
+export const isStandalone = (): boolean => {
+  return !!(
+    (window.navigator as any).standalone ||
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia('(display-mode: fullscreen)').matches
+  )
+}
+
+/** Returns true when running on iOS Safari (not standalone). */
+export const isIOSSafari = (): boolean => {
+  const ua = navigator.userAgent || ''
+  const ios = /iPhone|iPad|iPod/.test(ua) && !(window as any).MSStream
+  const safari = /Safari/.test(ua) && !/CriOS|FxiOS|OPiOS|mercury/.test(ua)
+  return ios && safari && !isStandalone()
+}

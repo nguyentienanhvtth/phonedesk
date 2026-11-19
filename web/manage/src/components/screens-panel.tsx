@@ -15,7 +15,7 @@ import type { PaletteEntry } from "@/lib/palette";
 import { cn } from "@/lib/utils";
 import { t, useLanguage } from "@/lib/i18n";
 import { findFree, randomId, GRID_PRESETS, PROVIDER_LABEL, WIDGET_LABEL, actionSummary, duplicateItem, moveTile, newItem, repack, resizeGrid, resizeTile, setWidgetKind, uniquePageId, type GridResult } from "@/lib/layout";
-import { presetsForPlatform, type LayoutPreset } from "@/components/layout-presets";
+import { presetsForPlatform, staleTemplate, rememberTemplate, dismissTemplate, type LayoutPreset } from "@/components/layout-presets";
 import { usePlatform } from "@/lib/platform";
 import type { Item, Layout, Page, WidgetKind } from "@/types";
 
@@ -149,9 +149,13 @@ export function ScreensPanel({ layout, pageIdx, itemId, setPageIdx, setItemId, u
   const [showPresets, setShowPresets] = useState(false);
   const [presetConfirm, setPresetConfirm] = useState<LayoutPreset | null>(null);
 
+  const [, setTplTick] = useState(0);
+  const stale = staleTemplate(layout, presets);
+
   const applyPreset = (preset: LayoutPreset) => {
     const keepTheme = layout.theme;
     update(() => ({ ...preset.layout, theme: keepTheme }));
+    rememberTemplate(preset);
     setPageIdx(0);
     select(null);
     setPresetConfirm(null);
@@ -166,6 +170,15 @@ export function ScreensPanel({ layout, pageIdx, itemId, setPageIdx, setItemId, u
           <PagesList layout={layout} pageIdx={pageIdx} setPageIdx={(i) => { setPageIdx(i); select(null); }} update={update} onAdd={addPage} />
           {presets.length > 0 && (
             <div className="mt-2 border-t pt-2">
+              {stale && !presetConfirm && (
+                <div className="mb-2 rounded-lg border border-info bg-info/10 p-2.5">
+                  <p className="text-xs font-medium">{t("The built-in \"{name}\" template has been updated since you applied it.", { name: t(stale.name) })}</p>
+                  <div className="mt-2 flex gap-1.5">
+                    <Button size="xs" variant="secondary" onClick={() => { dismissTemplate(stale); setTplTick((n) => n + 1); }}>{t("Keep mine")}</Button>
+                    <Button size="xs" icon={<Template />} onClick={() => setPresetConfirm(stale)}>{t("Re-apply")}</Button>
+                  </div>
+                </div>
+              )}
               <button
                 type="button"
                 onClick={() => setShowPresets((v) => !v)}

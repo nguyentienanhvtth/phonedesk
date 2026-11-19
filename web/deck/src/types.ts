@@ -12,7 +12,7 @@ export type Action =
   | { type: 'macro'; steps: { kind: string; [k: string]: unknown }[] }
   | { type: 'hass'; service: string; entityId?: string; data?: { [k: string]: unknown } }
 
-export type WidgetKind = 'clock' | 'cpu' | 'memory' | 'uptime' | 'load' | 'network' | 'nowplaying' | 'quota' | 'sessions' | 'entity' | 'weather' | 'value' | 'notifications'
+export type WidgetKind = 'clock' | 'cpu' | 'memory' | 'uptime' | 'load' | 'network' | 'nowplaying' | 'quota' | 'sessions' | 'entity' | 'weather' | 'value' | 'notifications' | 'gpu' | 'volume' | 'mic'
 
 export type ClockStyle = 'digital' | 'flip' | 'analog' | 'minimal' | 'word' | 'world'
 export interface ClockOptions {
@@ -184,6 +184,8 @@ export interface Stats {
   host?: string
   net?: { rx: number; tx: number }
   volume?: { level: number; muted: boolean } | null
+  mic?: { level: number; muted: boolean } | null
+  gpu?: { name: string; loadPercent: number; tempC: number; memUsedMB: number; memTotalMB: number; powerW?: number; clockMHz?: number; memClockMHz?: number } | null
 }
 
 export type MediaCommand = 'playpause' | 'next' | 'previous' | 'resume' | 'open'

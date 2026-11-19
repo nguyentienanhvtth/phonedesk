@@ -46,6 +46,9 @@
   -webkit-touch-callout: none;
   touch-action: manipulation;
   -ms-touch-action: manipulation;
+  /* Prevent iOS rubber-banding and overscroll */
+  overscroll-behavior: none;
+  -webkit-overscroll-behavior: none;
 }
 .pd-root[data-pd-theme='light'] {
   --pd-bg: #f4f4f6;
@@ -116,6 +119,10 @@
   padding-right: env(safe-area-inset-right);
   padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left);
+  /* the sides get the larger of the two side insets, so the grid sits centred with equal margins (in landscape the
+     notch side and the other side), instead of flush on one side and a gap on the other */
+  padding-right: max(env(safe-area-inset-left), env(safe-area-inset-right));
+  padding-left: max(env(safe-area-inset-left), env(safe-area-inset-right));
   -webkit-animation: pd-rise var(--pd-dur) var(--pd-ease-out);
   animation: pd-rise var(--pd-dur) var(--pd-ease-out);
 }
@@ -236,6 +243,11 @@
   -webkit-scroll-snap-type: x mandatory;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
+  /* Prevent iOS rubber-banding and restrict to horizontal panning */
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: none;
+  touch-action: pan-x;
+  -ms-touch-action: pan-x;
 }
 .pd-pager::-webkit-scrollbar {
   display: none;
@@ -334,17 +346,36 @@
 .pd-root .pd-dragging {
   opacity: 0.35;
 }
+/* Resize handle (preview/editor only): on every tile, shown on hover and on the selected tile; big enough to grab
+   with a mouse even when the manage page scales the phone down. */
 .pd-handle {
   position: absolute;
-  right: 3px;
-  bottom: 3px;
-  width: 14px;
-  height: 14px;
-  border-radius: 4px;
+  right: 2px;
+  bottom: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px 2px 6px 2px;
   background: var(--pd-accent);
   box-shadow: 0 0 0 2px var(--pd-bg);
   cursor: nwse-resize;
   touch-action: none;
+  z-index: 3;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.pd-handle::after {
+  content: '';
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--pd-bg);
+  border-bottom: 2px solid var(--pd-bg);
+}
+.pd-tile--edit:hover .pd-handle,
+.pd-sel .pd-handle {
+  opacity: 1;
 }
 .pd-slot {
   border: 1px dashed var(--pd-border-strong);
@@ -608,6 +639,35 @@
   font-size: 12px;
   line-height: 1.45;
   color: var(--pd-muted);
+}
+
+/* Add to Home Screen hint for iOS Safari */
+.pd-a2hs {
+  display: -webkit-flex;
+  display: flex;
+  align-items: flex-start;
+  margin-top: 14px;
+  padding: 12px;
+  background: rgba(34, 211, 238, 0.12);
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--pd-text);
+  text-align: left;
+}
+.pd-a2hs svg {
+  -webkit-flex: none;
+  flex: none;
+  margin-right: 10px;
+  margin-top: 2px;
+  color: var(--pd-accent);
+}
+.pd-a2hs b {
+  display: block;
+  margin-bottom: 2px;
+  font-weight: 600;
+  color: var(--pd-accent);
 }
 
 /* ---------- Toast ---------- */
@@ -2156,19 +2216,48 @@
   display: flex;
   -webkit-flex-direction: column;
   flex-direction: column;
-  height: 70%;
-  padding-bottom: 8px;
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 20px);
+  max-height: calc(100vh - 20px);
+  padding-top: 20px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+}
+@supports (height: 100dvh) {
+  .pd-modal__panel--proc {
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 20px);
+  }
 }
 .pd-proc__head {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 0;
+  z-index: 2;
   -webkit-flex: none;
   flex: none;
   display: -webkit-flex;
   display: flex;
   align-items: center;
-  margin-bottom: 8px;
+  padding-bottom: 10px;
+  margin-bottom: 4px;
+  background: var(--pd-tile);
+  border-bottom: 1px solid var(--pd-border);
 }
 .pd-proc__head b {
   font-size: 16px;
+}
+.pd-proc__drag {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  width: 36px;
+  height: 5px;
+  margin-left: -18px;
+  border-radius: 3px;
+  background: rgba(139, 139, 148, 0.4);
+}
+.pd-modal__panel--proc .pd-iconbtn {
+  width: 44px;
+  height: 44px;
+  margin-right: -8px;
 }
 .pd-toggle {
   display: -webkit-flex;
@@ -2180,11 +2269,12 @@
   border-radius: 9px;
 }
 .pd-root .pd-toggle__b {
-  padding: 6px 12px;
+  padding: 8px 14px;
   border-radius: 7px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--pd-muted);
+  min-height: 36px;
 }
 .pd-root .pd-toggle__b--on {
   color: var(--pd-text);
@@ -2197,6 +2287,7 @@
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
 }
 .pd-proc__msg {
   padding: 24px 0;
@@ -2208,9 +2299,10 @@
   display: -webkit-flex;
   display: flex;
   align-items: center;
-  padding: 9px 2px;
+  min-height: 44px;
+  padding: 8px 4px;
   border-top: 1px solid var(--pd-border);
-  font-size: 13px;
+  font-size: 14px;
 }
 .pd-proc__n {
   -webkit-flex: 1;
@@ -2219,27 +2311,43 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  font-weight: 500;
 }
 .pd-proc__v {
-  width: 64px;
+  -webkit-flex: none;
+  flex: none;
+  min-width: 56px;
+  padding-left: 8px;
   text-align: right;
   color: var(--pd-muted);
   font-variant-numeric: tabular-nums;
 }
 .pd-proc__v--mem {
-  width: 76px;
+  min-width: 68px;
 }
 .pd-proc__v--on {
   color: var(--pd-text);
   font-weight: 600;
 }
-
-/* rotated deck: screen insets map onto the rotated edges (top->right, right->bottom, bottom->left, left->top) */
+/*
+ * Rotated deck (theme wants landscape, the phone reports portrait): the root is turned 90deg clockwise
+ * (translateX(100vw) rotate(90deg)), so the deck's edges sit on these screen edges:
+ *   deck top -> screen right, deck right -> screen bottom, deck bottom -> screen left, deck left -> screen top.
+ * Each deck edge takes the inset of the screen edge it lies on; the deck's sides (screen top = notch / Dynamic
+ * Island, screen bottom = home indicator) both take the larger one so the grid stays centred.
+ * The deck's height is the screen's width here.
+ */
+.pd-root--rot .pd-modal__panel--proc {
+  max-height: calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - 20px);
+  padding-bottom: calc(8px + env(safe-area-inset-left, 0px));
+}
 .pd-root--rot .pd-panel {
-  padding-top: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-right);
-  padding-left: env(safe-area-inset-bottom);
+  padding-top: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-top);
+  padding-right: max(env(safe-area-inset-top), env(safe-area-inset-bottom));
+  padding-left: max(env(safe-area-inset-top), env(safe-area-inset-bottom));
 }
 
 /* preview inside the editor iframe: no safe-area padding, no sheet animation */
@@ -3449,3 +3557,143 @@
 .pd-qrow__n { max-width: 48%; }
 .pd-qrow__bar { min-width: 0; } .pd-qrow__n { -webkit-flex: 0 1 auto; flex: 0 1 auto; }
 .pd-page { -webkit-scroll-snap-stop: always; scroll-snap-stop: always; }
+
+/* ---------- Slider widgets (volume, mic) ---------- */
+.pd-slider {
+  -webkit-flex: 1;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: -webkit-flex;
+  display: flex;
+  -webkit-flex-direction: column;
+  flex-direction: column;
+  justify-content: center;
+}
+.pd-slider--empty {
+  align-items: center;
+  justify-content: center;
+}
+.pd-slider__none {
+  font-size: 12px;
+  color: var(--pd-muted);
+}
+.pd-slider__row {
+  display: -webkit-flex;
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.pd-slider--compact .pd-slider__row {
+  margin-bottom: 6px;
+}
+.pd-slider__btn {
+  -webkit-flex: none;
+  flex: none;
+  display: -webkit-flex;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin-right: 8px;
+  border-radius: 50%;
+  color: var(--pd-text);
+  background: rgba(139, 139, 148, 0.16);
+}
+.pd-slider--compact .pd-slider__btn {
+  width: 32px;
+  height: 32px;
+  margin-right: 6px;
+}
+.pd-slider__btn:active {
+  background: rgba(139, 139, 148, 0.32);
+}
+.pd-slider__lb {
+  -webkit-flex: 1;
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pd-slider__v {
+  -webkit-flex: none;
+  flex: none;
+  min-width: 36px;
+  text-align: right;
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.pd-slider--compact .pd-slider__v {
+  font-size: 14px;
+  min-width: 32px;
+}
+.pd-slider__track {
+  position: relative;
+  -webkit-flex: none;
+  flex: none;
+  height: 44px;
+  display: -webkit-flex;
+  display: flex;
+  align-items: center;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+  -ms-touch-action: none;
+}
+.pd-slider--compact .pd-slider__track {
+  height: 36px;
+}
+.pd-slider__bg {
+  position: relative;
+  width: 100%;
+  height: 8px;
+  margin: 0 11px;
+  border-radius: 4px;
+  background: rgba(139, 139, 148, 0.28);
+  overflow: hidden;
+}
+.pd-slider--compact .pd-slider__bg {
+  height: 6px;
+  border-radius: 3px;
+}
+.pd-slider__fill {
+  height: 100%;
+  border-radius: 4px;
+  -webkit-transition: width 0.1s ease-out;
+  transition: width 0.1s ease-out;
+}
+.pd-slider__thumb {
+  position: absolute;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  margin-top: -11px;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+.pd-slider--compact .pd-slider__thumb {
+  width: 18px;
+  height: 18px;
+  margin-top: -9px;
+}
+.pd-slider--tiny {
+  -webkit-flex-direction: row;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+}
+.pd-slider--tiny .pd-slider__btn {
+  margin-right: 6px;
+  width: 28px;
+  height: 28px;
+}
+.pd-slider--tiny .pd-slider__v {
+  font-size: 13px;
+  min-width: auto;
+}

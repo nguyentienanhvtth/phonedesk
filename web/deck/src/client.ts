@@ -527,6 +527,9 @@ export class DeckClient {
   volume(v: { level: number } | { muted: boolean }): Promise<PressResult> {
     return this.request(Object.assign({ type: 'volume' }, v))
   }
+  mic(v: { level: number } | { muted: boolean }): Promise<PressResult> {
+    return this.request(Object.assign({ type: 'mic' }, v))
+  }
 
   /** Exchange the PIN for a token. Rejects with a readable message. */
   async pair(pin: string, name: string): Promise<void> {
