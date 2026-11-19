@@ -460,7 +460,7 @@ export function realProbes(version: string): Probes {
     asService: process.env.XPC_SERVICE_NAME === SERVICE_LABEL || process.env.PHONEDESK_SERVICE === "1",
     run: async (argv) => {
       try {
-        const p = Bun.spawn(argv, { stdout: "pipe", stderr: "pipe" });
+        const p = Bun.spawn(argv, { stdout: "pipe", stderr: "pipe", windowsHide: true } as any);
         let timer: ReturnType<typeof setTimeout> | undefined;
         // bounded no matter what the child does: after 6 s we answer, kill it and stop waiting for its pipes
         const timeout = new Promise<{ code: number; out: string }>((res) => { timer = setTimeout(() => { try { p.kill(); } catch { /* gone */ } res({ code: 124, out: "timed out" }); }, 6000); });

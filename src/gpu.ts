@@ -1,4 +1,5 @@
 import { platform } from "./platform";
+import { existsSync } from "node:fs";
 
 export interface GpuStats {
   name: string;
@@ -75,8 +76,7 @@ function findNvidiaSmi(): string | null {
     ];
     for (const p of paths) {
       try {
-        const stat = Bun.spawnSync(["cmd", "/c", "if exist", `"${p}"`, "echo", "1"], { stdout: "pipe" });
-        if (stat.stdout.toString().includes("1")) {
+        if (existsSync(p)) {
           cachedPath = p;
           return p;
         }
@@ -106,7 +106,8 @@ export async function readGpu(): Promise<GpuReading> {
     const proc = Bun.spawn([exe, ...NVIDIA_SMI_ARGS], {
       stdout: "pipe",
       stderr: "pipe",
-    });
+      windowsHide: true, // a console program: without this a window flashes on every poll
+    } as any);
     const stdout = await new Response(proc.stdout).text();
     const code = await proc.exited;
     if (code !== 0) {

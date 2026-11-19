@@ -22,6 +22,13 @@ export const WIN_PANES = {
   privacy: "ms-settings:privacy",
 } as const;
 
+const base = (exe: string) => exe.replace(/^.*[\\/]/, "");
+/** The program the checks are about, as the user sees it: phonedesk.exe, or bun.exe when PhoneDesk runs from source. */
+export const exeName = (p: Pick<Probes, "exe">) => base(p.exe) || "phonedesk.exe";
+/** Running from source (`bun src/index.ts`): the firewall sees bun.exe, not phonedesk.exe. */
+export const fromSource = (p: Pick<Probes, "exe">) => /^bun(\.exe)?$/i.test(base(p.exe));
+const sourceNote = (p: Pick<Probes, "exe">) => (fromSource(p) ? t(" (running from source: the rules checked are the ones for {exe})", { exe: p.exe }) : "");
+
 export function parseKv(out: string): Record<string, string> {
   const m: Record<string, string> = {};
   for (const line of out.split(/\r?\n/)) {
@@ -36,7 +43,7 @@ export async function signature(p: Probes): Promise<DoctorItem> {
   const r = await p.run(signatureArgv(p.exe));
   const kv = parseKv(r.out);
   if (kv.status === "Valid") return { id: "signature", title, status: "ok", detail: t("signed by {who}", { who: kv.subject || "?" }) };
-  if (kv.status === "NotSigned") return { id: "signature", title, status: "ok", detail: t("not signed: Windows SmartScreen may warn the first time it runs"), fix: { text: t("If SmartScreen blocks it, choose More info > Run anyway, or run `Unblock-File` on phonedesk.exe in PowerShell.") } };
+  if (kv.status === "NotSigned") return { id: "signature", title, status: "ok", detail: t("not signed: Windows SmartScreen may warn the first time it runs"), fix: { text: t("If SmartScreen blocks it, choose More info > Run anyway, or run `Unblock-File` on {name} in PowerShell.", { name: exeName(p) }) } };
   return { id: "signature", title, status: "unknown", detail: t("not signed or unreadable ({exe})", { exe: p.exe }) };
 }
 
@@ -44,9 +51,9 @@ export async function smartscreen(p: Probes): Promise<DoctorItem> {
   const title = t("SmartScreen (downloaded file mark)");
   const r = await p.run(motwArgv(p.exe));
   if (parseKv(r.out).motw === "yes") {
-    return { id: "smartscreen", title, status: "missing", detail: t("phonedesk.exe carries the downloaded-from-the-internet mark: Windows may warn each time it starts"), fix: { text: t("Run `Unblock-File` on phonedesk.exe in PowerShell (the installer does this for you)."), settingsUrl: WIN_PANES.smartscreen } };
+    return { id: "smartscreen", title, status: "missing", detail: t("{name} carries the downloaded-from-the-internet mark: Windows may warn each time it starts", { name: exeName(p) }), fix: { text: t("Run `Unblock-File` on {name} in PowerShell (the installer does this for you).", { name: exeName(p) }), settingsUrl: WIN_PANES.smartscreen } };
   }
-  return { id: "smartscreen", title, status: "ok", detail: t("no downloaded-file mark on phonedesk.exe") };
+  return { id: "smartscreen", title, status: "ok", detail: t("no downloaded-file mark on {name}", { name: exeName(p) }) };
 }
 
 export async function firewall(p: Probes): Promise<DoctorItem> {
@@ -58,12 +65,12 @@ export async function firewall(p: Probes): Promise<DoctorItem> {
   const rules = r.out.split(/\r?\n/).filter((l) => l.startsWith("rule=")).map((l) => parseKv(l.replace(/;/g, "\n").replace(/^rule=/, "rule=")));
   const inbound = rules.filter((x) => /inbound|^1$/i.test(x.dir ?? "") && /^true$/i.test(x.enabled ?? ""));
   if (inbound.some((x) => /block|^4$/i.test(x.action ?? ""))) {
-    return { id: "firewall", title, status: "denied", detail: t("blocked by a firewall BLOCK rule for phonedesk.exe (Windows creates it when its first-run popup is not answered): phones cannot connect"), fix: { text: t("Run as administrator: netsh advfirewall firewall delete rule name=all program=\"{exe}\" & netsh advfirewall firewall add rule name=\"PhoneDesk\" dir=in action=allow program=\"{exe}\" profile=any remoteip=localsubnet", { exe: p.exe }), settingsUrl: WIN_PANES.firewall } };
+    return { id: "firewall", title, status: "denied", detail: t("blocked by a firewall BLOCK rule for {name} (Windows creates it when its first-run popup is not answered): phones cannot connect", { name: exeName(p) }) + sourceNote(p), fix: { text: t("Run as administrator: netsh advfirewall firewall delete rule name=all program=\"{exe}\" & netsh advfirewall firewall add rule name=\"PhoneDesk\" dir=in action=allow program=\"{exe}\" profile=any remoteip=localsubnet", { exe: p.exe }), settingsUrl: WIN_PANES.firewall } };
   }
-  if (inbound.some((x) => /allow|^2$/i.test(x.action ?? ""))) return { id: "firewall", title, status: "ok", detail: t("the firewall is on and allows incoming connections to phonedesk") };
+  if (inbound.some((x) => /allow|^2$/i.test(x.action ?? ""))) return { id: "firewall", title, status: "ok", detail: t("the firewall is on and allows incoming connections to {name}", { name: exeName(p) }) + sourceNote(p) };
   return {
     id: "firewall", title, status: "missing",
-    detail: t("the firewall is on and has no rule for phonedesk: phones on your network cannot connect until it is allowed"),
+    detail: t("the firewall is on and has no rule for {name}: phones on your network cannot connect until it is allowed", { name: exeName(p) }) + sourceNote(p),
     fix: { text: t("Click Allow when Windows asks, or run as administrator: netsh advfirewall firewall add rule name=\"PhoneDesk\" dir=in action=allow program=\"{exe}\" profile=any remoteip=localsubnet", { exe: p.exe }), settingsUrl: WIN_PANES.firewall },
   };
 }

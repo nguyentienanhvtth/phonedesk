@@ -4,7 +4,7 @@ import { platform } from "./platform";
 export async function portHolder(port: number): Promise<{ pid: number; name: string } | null> {
   const run = async (argv: string[]): Promise<string> => {
     try {
-      const p = Bun.spawn(argv, { stdout: "pipe", stderr: "ignore", stdin: "ignore" });
+      const p = Bun.spawn(argv, { stdout: "pipe", stderr: "ignore", stdin: "ignore", windowsHide: true } as any);
       const out = await new Response(p.stdout).text();
       await p.exited;
       return out;

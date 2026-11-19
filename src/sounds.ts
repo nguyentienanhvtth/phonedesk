@@ -174,7 +174,7 @@ export interface Child { kill: () => void; exited: Promise<unknown> }
 export type SpawnFn = (argv: string[]) => Child;
 
 const realSpawn: SpawnFn = (argv) => {
-  const p = Bun.spawn(argv, { stdin: "ignore", stdout: "ignore", stderr: "ignore" });
+  const p = Bun.spawn(argv, { stdin: "ignore", stdout: "ignore", stderr: "ignore", windowsHide: true } as any);
   return { kill: () => p.kill(), exited: p.exited };
 };
 
