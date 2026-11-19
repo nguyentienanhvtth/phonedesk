@@ -54,8 +54,10 @@ describe("palette: Windows entries", async () => {
     expect(mac).toContain("v-set");
   });
   test("every Windows entry makes a valid button whose hotkey parses", () => {
-    const items = STATIC_ENTRIES.filter((e) => WIN_ONLY_ENTRIES.has(e.key) || e.key === "v-set").map((e, i) => ({ ...(e.make() as any), id: `x${i}`, x: i % 8, y: Math.floor(i / 8) }));
-    expect(items.length).toBe(WIN_ONLY_ENTRIES.size + 1);
+    // the per-app volume and audio device tiles need the user's choice first (see gaming-manage.test.ts)
+    const needsChoice = new Set(["w-appvol", "w-outdev"]);
+    const items = STATIC_ENTRIES.filter((e) => (WIN_ONLY_ENTRIES.has(e.key) && !needsChoice.has(e.key)) || e.key === "v-set").map((e, i) => ({ ...(e.make() as any), id: `x${i}`, x: i % 8, y: Math.floor(i / 8) }));
+    expect(items.length).toBe(WIN_ONLY_ENTRIES.size - needsChoice.size + 1);
     expect(() => validateLayout({ version: 1, pages: [{ id: "p", name: "P", columns: 8, rows: 4, items }] })).not.toThrow();
     for (const it of items) if (it.action.type === "hotkey") expect(() => parseHotkey(it.action.keys)).not.toThrow();
   });

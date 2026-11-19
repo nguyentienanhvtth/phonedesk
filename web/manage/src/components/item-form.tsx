@@ -22,6 +22,7 @@ import {
   ACTION_ICON, ACTION_SHORT, MEDIA_LABEL, MIC_LABEL, PROVIDER_LABEL, VOLUME_LABEL, WIDGET_LABEL, defaultAction,
 } from "@/lib/layout";
 import { cn } from "@/lib/utils";
+import { shellExample, openExample, usePlatform } from "@/lib/platform";
 import { t, useLanguage } from "@/lib/i18n";
 import { VI } from "@/i18n/vi";
 import { EntityPicker } from "@/components/entity-picker";
@@ -184,6 +185,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function ActionFields({ action, pages, onChange, onPickApp }: { action: Action | undefined; pages: Page[]; onChange: (a: Action | undefined) => void; onPickApp: (app: MacApp) => void }) {
   useLanguage();
+  const platform = usePlatform();
   const a = action;
   const patch = (p: Record<string, string>) => onChange({ ...a, ...p } as Action);
   return (
@@ -201,7 +203,7 @@ function ActionFields({ action, pages, onChange, onPickApp }: { action: Action |
             <AppPickerButton target={a.target} onPick={onPickApp} />
           </Field>
           <Field label={t("Open what?")} id="f-open" hint={t("A web address, a file/folder path or an app name.")}>
-            <Input id="f-open" value={a.target} placeholder={t("https://... or an app name (Safari)")} onChange={(e) => patch({ target: e.target.value })} />
+            <Input id="f-open" value={a.target} placeholder={t(openExample(platform))} onChange={(e) => patch({ target: e.target.value })} />
           </Field>
         </>
       )}
@@ -223,7 +225,7 @@ function ActionFields({ action, pages, onChange, onPickApp }: { action: Action |
       {a?.type === "shell" && (
         <>
           <Field label={t("Command")} id="f-cmd">
-            <Input id="f-cmd" value={a.command} placeholder={t("e.g. open -a Calculator")} onChange={(e) => patch({ command: e.target.value })} />
+            <Input id="f-cmd" value={a.command} placeholder={t(shellExample(platform))} onChange={(e) => patch({ command: e.target.value })} />
           </Field>
           <Alert tone="warning" icon={<AlertTriangle className="size-4" />}>
             {t("The command runs directly on this computer, with your permissions. Only enter commands you trust.")}

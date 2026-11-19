@@ -28,13 +28,13 @@ const TOOLS: Info[] = [
   {
     id: "claude",
     name: "Claude Code",
-    reads: "Reads your quota from the Claude Code sign-in already on this Mac, plus session metadata (project, state, time). Never reads the content of questions or answers.",
+    reads: "Reads your quota from the Claude Code sign-in already on this computer, plus session metadata (project, state, time). Never reads the content of questions or answers.",
     defaultPath: "~/.claude/settings.json",
   },
   {
     id: "codex",
     name: "Codex",
-    reads: "Reads your quota from the Codex session files on this Mac, plus session metadata (project, state, time). Never reads the content of questions or answers.",
+    reads: "Reads your quota from the Codex session files on this computer, plus session metadata (project, state, time). Never reads the content of questions or answers.",
     defaultPath: "~/.codex/hooks.json",
   },
   {
@@ -45,13 +45,13 @@ const TOOLS: Info[] = [
   {
     id: "opencode",
     name: "OpenCode",
-    reads: "Reads OpenCode's local session data on this Mac (project, state, cost and tokens per session). Quota is shown only for OpenCode 2.x with Go. Never reads the content of questions or answers.",
+    reads: "Reads OpenCode's local session data on this computer (project, state, cost and tokens per session). Quota is shown only for OpenCode 2.x with Go. Never reads the content of questions or answers.",
     defaultPath: "~/.config/opencode/plugins/phonedesk.js",
   },
   {
     id: "grok",
     name: "Grok",
-    reads: "Reads Grok's local session data on this Mac (project, state, time) and your usage from the Grok CLI. Never reads the content of questions or answers.",
+    reads: "Reads Grok's local session data on this computer (project, state, time) and your usage from the Grok CLI. Never reads the content of questions or answers.",
     defaultPath: "~/.grok/hooks/phonedesk.json",
   },
 ];

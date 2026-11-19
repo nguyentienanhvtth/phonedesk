@@ -13,6 +13,7 @@ import { useHassServices } from "@/lib/hass";
 import { useSounds } from "@/lib/sounds";
 import { SegmentedControl } from "@/components/ui/knowns/segmented-control";
 import { Slider } from "@/components/ui/knowns/slider";
+import { shellExample, usePlatform } from "@/lib/platform";
 import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { MACRO_MAX_STEPS, MACRO_MAX_WAIT_MS, type MacroStep, type Page } from "@/types";
@@ -140,6 +141,7 @@ export function MacroEditor({ steps, pages, onChange }: { steps: MacroStep[]; pa
 
 function StepFields({ i, step: s, pages, onChange }: { i: number; step: MacroStep; pages: Page[]; onChange: (s: MacroStep) => void }) {
   const { data: services } = useHassServices();
+  const platform = usePlatform();
   switch (s.kind) {
     case "hotkey": return <HotkeyField id={`ms-${i}-keys`} label={t("Key combination")} value={s.keys} onChange={(keys) => onChange({ ...s, keys })} />;
     case "type": return <Textarea rows={2} aria-label={t("Text to type")} value={s.text} maxLength={2000} placeholder={t("Text content to type")} onChange={(e) => onChange({ ...s, text: e.target.value })} />;
@@ -153,7 +155,7 @@ function StepFields({ i, step: s, pages, onChange }: { i: number; step: MacroSte
     case "open": return <Input size="sm" aria-label={t("What to open")} value={s.target} placeholder={t("https://… or app name")} onChange={(e) => onChange({ ...s, target: e.target.value })} />;
     case "shell": return (
       <>
-        <Input size="sm" aria-label={t("Shell command")} value={s.command} placeholder={t("e.g. open -a Calculator")} onChange={(e) => onChange({ ...s, command: e.target.value })} />
+        <Input size="sm" aria-label={t("Shell command")} value={s.command} placeholder={t(shellExample(platform))} onChange={(e) => onChange({ ...s, command: e.target.value })} />
         <p className="flex items-center gap-1.5 text-[11.5px] text-amber-500"><Warn className="size-3.5" /> {t("Runs directly on this computer with your permissions.")}</p>
       </>
     );

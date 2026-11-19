@@ -71,11 +71,17 @@ export function hotkeyText(keys: string, platform: Platform = getPlatform()): st
   return platform === "darwin" ? l.map((x) => (x.length === 1 || /^[⌘⌃⌥⇧↩⌫⌦⎋⇥↑↓←→]$/.test(x) ? x : ` ${x} `)).join("").trim() : l.join("+");
 }
 
+/** Example text for the shell-command and open fields, in the agent's OS terms. */
+export const shellExample = (p: Platform = getPlatform()): string => (p === "win32" ? "e.g. notepad or start ms-settings:" : p === "darwin" ? "e.g. open -a Calculator" : "e.g. xdg-open .");
+export const openExample = (p: Platform = getPlatform()): string => (p === "win32" ? "https://... or an app name (Notepad)" : p === "darwin" ? "https://... or an app name (Safari)" : "https://... or an app name (firefox)");
+
 /** Hotkeys that exist only on macOS (palette entries are hidden elsewhere). */
 export const MAC_ONLY_ENTRIES = new Set(["k-lock", "k-spot", "k-shot"]);
 /** Windows-only palette entries (Windows key shortcuts, Game Bar, lock): hidden on macOS and Linux. */
-export const WIN_ONLY_ENTRIES = new Set(["w-lock", "w-search", "w-shot", "w-gamebar", "w-record", "w-taskmgr", "w-taskview", "w-desktop", "w-clipboard", "m-mic"]);
+export const WIN_ONLY_ENTRIES = new Set(["w-lock", "w-search", "w-shot", "w-gamebar", "w-record", "w-taskmgr", "w-taskview", "w-desktop", "w-clipboard", "m-mic", "w-appvol", "w-outdev"]);
+/** Entries macOS cannot do (the agent has no held keys there). */
+export const NOT_MAC_ENTRIES = new Set(["w-ptt"]);
 
 /** Whether a static palette entry is offered for the agent's OS. */
 export const entryForPlatform = (key: string, platform: Platform): boolean =>
-  platform === "darwin" ? !WIN_ONLY_ENTRIES.has(key) : platform === "win32" ? !MAC_ONLY_ENTRIES.has(key) : !MAC_ONLY_ENTRIES.has(key) && !WIN_ONLY_ENTRIES.has(key);
+  platform === "darwin" ? !WIN_ONLY_ENTRIES.has(key) && !NOT_MAC_ENTRIES.has(key) : platform === "win32" ? !MAC_ONLY_ENTRIES.has(key) : !MAC_ONLY_ENTRIES.has(key) && !WIN_ONLY_ENTRIES.has(key);

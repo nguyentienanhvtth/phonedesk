@@ -119,7 +119,7 @@ export async function fetchClaudeQuota(deps: ClaudeDeps = {}, last?: ProviderQuo
     updatedAt: now,
   });
   const creds = await readClaudeToken(deps);
-  if (!creds) return keep(t("Sign in to Claude Code on this Mac"));
+  if (!creds) return keep(t("Sign in to Claude Code on this computer"));
   if (creds.expiresAt !== undefined && creds.expiresAt <= now) return keep(t(TOKEN_EXPIRED), creds.plan);
   const fp = tokenFingerprint(creds.accessToken);
   const until = blocked.get(fp);
