@@ -175,6 +175,8 @@ const vi: Record<string, string> = {
   "the terminal app you started PhoneDesk from": "ứng dụng Terminal bạn dùng để chạy PhoneDesk",
   "Accessibility": "Trợ năng (Accessibility)",
   "macOS only": "chỉ có trên macOS",
+  "Microphone control is not available on this computer": "Máy này chưa hỗ trợ điều khiển micro",
+  "Cannot read the microphone state": "Không đọc được trạng thái micro",
   "could not ask macOS": "không hỏi được macOS",
   "macOS did not answer": "macOS không trả lời",
   "granted to {who}": "đã cấp cho {who}",

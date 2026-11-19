@@ -23,7 +23,12 @@ beforeAll(async () => {
   } as any);
   base = `http://localhost:${app.port}`;
 });
-afterAll(() => app.stop());
+afterAll(async () => {
+  // config's HOME is shared by every test file in this process: put the default layout back for the others (server.test presses its buttons)
+  const { defaultLayout } = await import("../src/config");
+  await fetch(`${base}/api/layout`, { method: "PUT", body: JSON.stringify(defaultLayout()) });
+  app.stop();
+});
 
 describe("saving a layout template through the real API", () => {
   test("Gaming PC exactly as the manage page applies it (template pages + the current theme) saves and reads back", async () => {

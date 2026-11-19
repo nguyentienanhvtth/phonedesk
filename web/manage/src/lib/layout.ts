@@ -31,6 +31,8 @@ export function defaultAction(type: ActionType, firstPage = ""): Action {
     case "shell": return { type, command: "" };
     case "media": return { type, command: "playpause" };
     case "volume": return { type, command: "up" };
+    case "set-volume": return { type, level: 50 };
+    case "mic": return { type, command: "toggle" };
     case "page": return { type, page: firstPage };
     case "sound": return { type, sound: "", on: "mac", volume: 100, mode: "restart" };
     case "sound-stop": return { type };
@@ -240,6 +242,8 @@ export const ACTION_LABEL: Record<ActionType, string> = {
   shell: "Shell command",
   media: "Play music",
   volume: "Volume",
+  "set-volume": "Set volume level",
+  mic: "Microphone",
   page: "Switch screen",
   sound: "Play sound",
   hass: "Home Assistant",
@@ -249,14 +253,15 @@ export const ACTION_LABEL: Record<ActionType, string> = {
 
 export const MEDIA_LABEL: Record<string, string> = { playpause: "Play / Pause", next: "Next track", previous: "Previous track" };
 export const VOLUME_LABEL: Record<string, string> = { up: "Increase", down: "Decrease", mute: "Mute" };
+export const MIC_LABEL: Record<string, string> = { toggle: "Toggle mute", mute: "Mute", unmute: "Unmute" };
 
 export const ACTION_ICON: Record<ActionType, string> = {
   open: "external-link", hotkey: "keyboard", type: "type", shell: "square-terminal",
-  media: "play", volume: "volume-2", page: "layout-grid", sound: "music", "sound-stop": "player-stop", hass: "home", macro: "bolt",
+  media: "play", volume: "volume-2", "set-volume": "adjustments-horizontal", mic: "microphone", page: "layout-grid", sound: "music", "sound-stop": "player-stop", hass: "home", macro: "bolt",
 };
 
 export const ACTION_SHORT: Record<ActionType, string> = {
-  open: "Open", hotkey: "Hotkey", type: "Type", shell: "Command", media: "Music", volume: "Volume", page: "Screen", sound: "Sound", "sound-stop": "Stop sound", hass: "Home", macro: "Macro",
+  open: "Open", hotkey: "Hotkey", type: "Type", shell: "Command", media: "Music", volume: "Volume", "set-volume": "Set level", mic: "Mic", page: "Screen", sound: "Sound", "sound-stop": "Stop sound", hass: "Home", macro: "Macro",
 };
 
 /** One-line summary of what a button does, for the item list. */
@@ -269,6 +274,8 @@ export function actionSummary(a: Action | undefined): string {
     case "shell": return t("Command: {command}", { command: a.command || "…" });
     case "media": return t(MEDIA_LABEL[a.command] ?? a.command);
     case "volume": return t("Volume: {mode}", { mode: t(VOLUME_LABEL[a.command] ?? a.command).toLowerCase() });
+    case "set-volume": return a.device === "mic" ? t("Microphone level {n}%", { n: a.level }) : t("Volume level {n}%", { n: a.level });
+    case "mic": return t("Microphone: {mode}", { mode: t(MIC_LABEL[a.command] ?? a.command).toLowerCase() });
     case "page": return t("Go to screen {page}", { page: a.page || "…" });
     case "sound": return a.sound ? t("Play sound") : t("Play sound (no clip selected)");
     case "sound-stop": return t("Stop all sounds");
@@ -277,23 +284,39 @@ export function actionSummary(a: Action | undefined): string {
   }
 }
 
+/** KeyboardEvent.code of the keypad keys -> the layout's key names. */
+const NUMPAD_CODES: Record<string, string> = {
+  NumpadAdd: "numadd", NumpadSubtract: "numsubtract", NumpadMultiply: "nummultiply", NumpadDivide: "numdivide",
+  NumpadDecimal: "numdecimal", NumpadEnter: "numenter", NumLock: "numlock",
+};
+
 /**
  * Builds the layout's canonical "cmd+shift+4" from a keydown event; undefined while only modifiers are held.
- * On Windows the agent presses Ctrl for cmd, so Ctrl (and the Windows key) are recorded as "cmd": the layout stays portable.
+ * On Windows the agent presses Ctrl for cmd, so Ctrl is recorded as "cmd" (the layout stays portable) and the
+ * Windows key as "win". Windows itself keeps many Win+key shortcuts from the browser: those are typed or picked instead.
  */
 export function hotkeyFromEvent(e: KeyboardEvent, platform: Platform = getPlatform()): string | undefined {
   const NAMED: Record<string, string> = {
     Enter: "return", Tab: "tab", " ": "space", Backspace: "delete", Delete: "forwarddelete", Escape: "escape",
     ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
     Home: "home", End: "end", PageUp: "pageup", PageDown: "pagedown",
+    Insert: "insert", PrintScreen: "printscreen", Pause: "pause", CapsLock: "capslock", ScrollLock: "scrolllock", MediaStop: "mediastop",
   };
-  let key: string | undefined = NAMED[e.key];
-  if (!key && /^F([1-9]|1[0-2])$/.test(e.key)) key = e.key.toLowerCase();
+  let key: string | undefined = NUMPAD_CODES[e.code];
+  if (!key && /^Numpad\d$/.test(e.code)) key = "num" + e.code.slice(6);
+  if (!key) key = NAMED[e.key];
+  if (!key && /^F([1-9]|1\d|2[0-4])$/.test(e.key)) key = e.key.toLowerCase();
   if (!key && /^Key[A-Z]$/.test(e.code)) key = e.code.slice(3).toLowerCase();
   if (!key && /^Digit\d$/.test(e.code)) key = e.code.slice(5);
   if (!key && e.key.length === 1) key = e.key.toLowerCase();
   if (!key) return undefined;
   const win = platform === "win32";
-  const mods = [(win ? e.ctrlKey || e.metaKey : e.metaKey) && "cmd", !win && e.ctrlKey && "ctrl", e.altKey && "alt", e.shiftKey && "shift"].filter(Boolean) as string[];
+  const mods = [
+    (win ? e.ctrlKey : e.metaKey) && "cmd",
+    win && e.metaKey && "win",
+    !win && e.ctrlKey && "ctrl",
+    e.altKey && "alt",
+    e.shiftKey && "shift",
+  ].filter(Boolean) as string[];
   return [...mods, key].join("+");
 }

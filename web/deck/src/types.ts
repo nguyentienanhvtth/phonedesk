@@ -6,6 +6,8 @@ export type Action =
   | { type: 'shell'; command: string }
   | { type: 'media'; command: 'playpause' | 'next' | 'previous' }
   | { type: 'volume'; command: 'up' | 'down' | 'mute' }
+  | { type: 'set-volume'; level: number; device?: 'output' | 'mic' }
+  | { type: 'mic'; command: 'mute' | 'unmute' | 'toggle' }
   | { type: 'page'; page: string }
   | { type: 'sound'; sound: string; on?: 'mac' | 'phone' | 'both'; volume?: number; mode?: 'overlap' | 'restart' | 'toggle' }
   | { type: 'sound-stop' }

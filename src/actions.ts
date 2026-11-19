@@ -14,7 +14,7 @@ import { platform } from "./platform";
  *   (stderr trimmed, or "timed out" after 10 s). `page` resolves immediately.
  *
  * Hotkey format: "cmd+shift+4", "ctrl+alt+t", "f5", "return", "space", "up".
- * On Windows, cmd/command/meta/win map to Ctrl because SendKeys cannot press the Win key.
+ * On Windows, cmd/command/meta map to Ctrl (portable layouts); win/super is the real Windows key (SendInput).
  */
 
 export { ACTION_TIMEOUT_MS } from "./platform/exec";
@@ -29,10 +29,14 @@ const MAC_KEY_CODES: Record<string, number> = {
   left: 123, right: 124, down: 125, up: 126,
   home: 115, end: 119, pageup: 116, pagedown: 121,
   f1: 122, f2: 120, f3: 99, f4: 118, f5: 96, f6: 97, f7: 98, f8: 100, f9: 101, f10: 109, f11: 103, f12: 111,
+  f13: 105, f14: 107, f15: 113, f16: 106, f17: 64, f18: 79, f19: 80, f20: 90,
+  num0: 82, num1: 83, num2: 84, num3: 85, num4: 86, num5: 87, num6: 88, num7: 89, num8: 91, num9: 92,
+  numdecimal: 65, nummultiply: 67, numadd: 69, numlock: 71, numdivide: 75, numenter: 76, numsubtract: 78,
+  insert: 114, capslock: 57,
 };
 
 const MAC_MODS: Record<ParsedHotkey["mods"][number], string> = {
-  cmd: "command down", ctrl: "control down", alt: "option down", shift: "shift down",
+  cmd: "command down", ctrl: "control down", alt: "option down", shift: "shift down", win: "command down",
 };
 
 /** Escapes text for inside an AppleScript double-quoted string, turning control chars into expressions. */
@@ -46,8 +50,10 @@ export function escapeAppleScript(text: string): string {
 
 function macHotkeyScript(keys: string): string {
   const { mods, key } = parseHotkey(keys);
-  const using = mods.length ? ` using {${mods.map((m) => MAC_MODS[m]).join(", ")}}` : "";
+  const names = [...new Set(mods.map((m) => MAC_MODS[m]))];
+  const using = names.length ? ` using {${names.join(", ")}}` : "";
   const code = MAC_KEY_CODES[key];
+  if (code === undefined && [...key].length > 1) throw new Error(`the key "${key}" is not available on macOS`);
   const body = code !== undefined ? `key code ${code}` : `keystroke "${escapeAppleScript(key)}"`;
   return `tell application "System Events" to ${body}${using}`;
 }
@@ -102,7 +108,10 @@ const WIN_NAMED: Record<string, string> = {
   return: "{ENTER}", tab: "{TAB}", space: " ", delete: "{BACKSPACE}", forwarddelete: "{DELETE}", escape: "{ESC}",
   up: "{UP}", down: "{DOWN}", left: "{LEFT}", right: "{RIGHT}", home: "{HOME}", end: "{END}",
   pageup: "{PGUP}", pagedown: "{PGDN}",
-  ...Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`f${i + 1}`, `{F${i + 1}}`])),
+  ...Object.fromEntries(Array.from({ length: 16 }, (_, i) => [`f${i + 1}`, `{F${i + 1}}`])),
+  insert: "{INSERT}", printscreen: "{PRTSC}", pause: "{BREAK}", capslock: "{CAPSLOCK}", scrolllock: "{SCROLLLOCK}", numlock: "{NUMLOCK}",
+  numadd: "{ADD}", numsubtract: "{SUBTRACT}", nummultiply: "{MULTIPLY}", numdivide: "{DIVIDE}", numenter: "{ENTER}", numdecimal: ".",
+  ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`num${i}`, String(i)])),
 };
 
 /** Escapes one literal character for SendKeys (+^%~(){}[] are special). */
@@ -124,10 +133,13 @@ export function escapePowerShell(text: string): string {
 function winSendKeysHotkey(keys: string): string {
   const { mods, key } = parseHotkey(keys);
   let prefix = "";
-  if (mods.includes("cmd") || mods.includes("ctrl")) prefix += "^";
+  // SendKeys (legacy builder only; the agent uses SendInput) has no Windows key: win falls back to Ctrl here
+  if (mods.includes("cmd") || mods.includes("ctrl") || mods.includes("win")) prefix += "^";
   if (mods.includes("alt")) prefix += "%";
   if (mods.includes("shift")) prefix += "+";
-  const k = WIN_NAMED[key] ?? escapeSendKeysChar(key);
+  const named = WIN_NAMED[key];
+  if (named === undefined && [...key].length > 1) throw new Error(`the key "${key}" cannot be sent with SendKeys`);
+  const k = named ?? escapeSendKeysChar(key);
   return prefix + k;
 }
 
@@ -140,16 +152,20 @@ const WIN_VOLUME: Record<string, number> = { mute: 173, down: 174, up: 175 };
 
 // ---------- Linux ----------
 
-const XDO_MODS: Record<ParsedHotkey["mods"][number], string> = { cmd: "super", ctrl: "ctrl", alt: "alt", shift: "shift" };
+const XDO_MODS: Record<ParsedHotkey["mods"][number], string> = { cmd: "super", ctrl: "ctrl", alt: "alt", shift: "shift", win: "super" };
 const XDO_KEYS: Record<string, string> = {
   return: "Return", tab: "Tab", space: "space", delete: "BackSpace", forwarddelete: "Delete", escape: "Escape",
   up: "Up", down: "Down", left: "Left", right: "Right", home: "Home", end: "End", pageup: "Prior", pagedown: "Next",
-  ...Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`f${i + 1}`, `F${i + 1}`])),
+  ...Object.fromEntries(Array.from({ length: 24 }, (_, i) => [`f${i + 1}`, `F${i + 1}`])),
+  insert: "Insert", printscreen: "Print", pause: "Pause", capslock: "Caps_Lock", scrolllock: "Scroll_Lock", numlock: "Num_Lock",
+  numadd: "KP_Add", numsubtract: "KP_Subtract", nummultiply: "KP_Multiply", numdivide: "KP_Divide", numdecimal: "KP_Decimal", numenter: "KP_Enter",
+  ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`num${i}`, `KP_${i}`])),
+  mediastop: "XF86AudioStop",
 };
 
 function xdotoolKey(keys: string): string {
   const { mods, key } = parseHotkey(keys);
-  return [...mods.map((m) => XDO_MODS[m]), XDO_KEYS[key] ?? key].join("+");
+  return [...new Set(mods.map((m) => XDO_MODS[m]))].concat(XDO_KEYS[key] ?? key).join("+");
 }
 
 // ---------- buildCommand ----------
@@ -160,6 +176,7 @@ export function buildCommand(a: Action, platform: NodeJS.Platform): string[] {
   if (a.type === "sound" || a.type === "sound-stop") throw new Error("sound actions are handled by the sound player");
   if (a.type === "hass") throw new Error("Home Assistant actions are handled by the HA client");
   if (a.type === "macro") throw new Error("macros are run step by step by the macro runner");
+  if (a.type === "set-volume" || a.type === "mic") throw new Error("volume and microphone levels are set by the agent, not a command");
 
   const isWin = platform === "win32";
   const isMac = platform === "darwin";

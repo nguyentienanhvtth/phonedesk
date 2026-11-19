@@ -1,4 +1,4 @@
-import { decodeVkScan, INPUT_SIZE, packInputs, type KeyEvent, type VkScan } from "./keys";
+import { decodeVkScan, INPUT_SIZE, packInputs, staticScan, type KeyEvent, type VkScan, type VkToScan } from "./keys";
 
 /**
  * The few Win32 calls PhoneDesk makes through bun:ffi: SendInput (keys), GetLastInputInfo (idle),
@@ -23,6 +23,7 @@ function load(): Win | null {
         SendInput: { args: [T.u32, T.ptr, T.i32], returns: T.u32 },
         GetLastInputInfo: { args: [T.ptr], returns: T.bool },
         VkKeyScanW: { args: [T.u16], returns: T.i16 },
+        MapVirtualKeyW: { args: [T.u32, T.u32], returns: T.u32 },
         GetProcessWindowStation: { args: [], returns: T.ptr },
         GetUserObjectInformationW: { args: [T.ptr, T.i32, T.ptr, T.u32, T.ptr], returns: T.bool },
       }).symbols,
@@ -58,6 +59,19 @@ export function sendInput(events: KeyEvent[]): void {
 export const vkScan: VkScan = (ch) => {
   const w = need();
   return decodeVkScan(w.user32.VkKeyScanW(ch.charCodeAt(0)) as number);
+};
+
+const MAPVK_VK_TO_VSC_EX = 4;
+const scanCache = new Map<number, number>();
+/** Virtual key -> scan code of the current layout (0xE0xx for extended keys); the US table when the call fails. */
+export const vkToScan: VkToScan = (vk) => {
+  const hit = scanCache.get(vk);
+  if (hit !== undefined) return hit;
+  let sc = 0;
+  try { sc = (need().user32.MapVirtualKeyW(vk, MAPVK_VK_TO_VSC_EX) as number) >>> 0; } catch { sc = 0; }
+  if (!sc) sc = staticScan(vk);
+  scanCache.set(vk, sc);
+  return sc;
 };
 
 /** Seconds since the last keyboard/mouse input of the signed-in session. */

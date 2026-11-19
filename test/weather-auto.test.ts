@@ -39,7 +39,12 @@ beforeAll(async () => {
   expect((await fetch(`${base}/api/layout`, { method: "PUT", body: JSON.stringify(layout) })).status).toBe(200);
   token = ((await (await fetch(`${base}/api/pair`, { method: "POST", body: JSON.stringify({ pin: "555555", name: "t" }) })).json()) as any).token;
 });
-afterAll(() => app?.stop());
+afterAll(async () => {
+  // config's HOME is shared by every test file in this process: put the default layout back for the others
+  const { defaultLayout } = await import("../src/config");
+  if (base) await fetch(`${base}/api/layout`, { method: "PUT", body: JSON.stringify(defaultLayout()) }).catch(() => {});
+  app?.stop();
+});
 
 test("a weather tile on auto starts working when Home Assistant connects after the agent started, and says what to do before", async () => {
   const ws = new WebSocket(`ws://localhost:${app.port}/ws?token=${token}`);
