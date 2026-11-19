@@ -277,23 +277,39 @@ export function actionSummary(a: Action | undefined): string {
   }
 }
 
+/** KeyboardEvent.code of the keypad keys -> the layout's key names. */
+const NUMPAD_CODES: Record<string, string> = {
+  NumpadAdd: "numadd", NumpadSubtract: "numsubtract", NumpadMultiply: "nummultiply", NumpadDivide: "numdivide",
+  NumpadDecimal: "numdecimal", NumpadEnter: "numenter", NumLock: "numlock",
+};
+
 /**
  * Builds the layout's canonical "cmd+shift+4" from a keydown event; undefined while only modifiers are held.
- * On Windows the agent presses Ctrl for cmd, so Ctrl (and the Windows key) are recorded as "cmd": the layout stays portable.
+ * On Windows the agent presses Ctrl for cmd, so Ctrl is recorded as "cmd" (the layout stays portable) and the
+ * Windows key as "win". Windows itself keeps many Win+key shortcuts from the browser: those are typed or picked instead.
  */
 export function hotkeyFromEvent(e: KeyboardEvent, platform: Platform = getPlatform()): string | undefined {
   const NAMED: Record<string, string> = {
     Enter: "return", Tab: "tab", " ": "space", Backspace: "delete", Delete: "forwarddelete", Escape: "escape",
     ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
     Home: "home", End: "end", PageUp: "pageup", PageDown: "pagedown",
+    Insert: "insert", PrintScreen: "printscreen", Pause: "pause", CapsLock: "capslock", ScrollLock: "scrolllock", MediaStop: "mediastop",
   };
-  let key: string | undefined = NAMED[e.key];
-  if (!key && /^F([1-9]|1[0-2])$/.test(e.key)) key = e.key.toLowerCase();
+  let key: string | undefined = NUMPAD_CODES[e.code];
+  if (!key && /^Numpad\d$/.test(e.code)) key = "num" + e.code.slice(6);
+  if (!key) key = NAMED[e.key];
+  if (!key && /^F([1-9]|1\d|2[0-4])$/.test(e.key)) key = e.key.toLowerCase();
   if (!key && /^Key[A-Z]$/.test(e.code)) key = e.code.slice(3).toLowerCase();
   if (!key && /^Digit\d$/.test(e.code)) key = e.code.slice(5);
   if (!key && e.key.length === 1) key = e.key.toLowerCase();
   if (!key) return undefined;
   const win = platform === "win32";
-  const mods = [(win ? e.ctrlKey || e.metaKey : e.metaKey) && "cmd", !win && e.ctrlKey && "ctrl", e.altKey && "alt", e.shiftKey && "shift"].filter(Boolean) as string[];
+  const mods = [
+    (win ? e.ctrlKey : e.metaKey) && "cmd",
+    win && e.metaKey && "win",
+    !win && e.ctrlKey && "ctrl",
+    e.altKey && "alt",
+    e.shiftKey && "shift",
+  ].filter(Boolean) as string[];
   return [...mods, key].join("+");
 }
