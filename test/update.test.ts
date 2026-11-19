@@ -181,6 +181,13 @@ describe.skipIf(win)("phonedesk update against a fake release folder", () => {
 const statOk = (f: string) => (require("node:fs").statSync(f).mode & 0o111) !== 0;
 
 describe("UpdateChecker", () => {
+  const savedEnv = process.env.PHONEDESK_ENABLE_UPDATE_CHECK;
+  beforeAll(() => { process.env.PHONEDESK_ENABLE_UPDATE_CHECK = "1"; });
+  afterAll(() => {
+    if (savedEnv === undefined) delete process.env.PHONEDESK_ENABLE_UPDATE_CHECK;
+    else process.env.PHONEDESK_ENABLE_UPDATE_CHECK = savedEnv;
+  });
+
   test("one lookup a day (failures too), off means no lookup, refresh forces", async () => {
     let n = 0, t = 1_000_000, fail = false;
     const c = new UpdateChecker({ latest: async () => { n++; if (fail) throw new Error("offline"); return "v0.2.0"; }, now: () => t, current: () => "0.1.1" });
@@ -203,7 +210,9 @@ describe("GET /api/update", () => {
   let app: Awaited<ReturnType<typeof import("../src/server").startServer>>;
   let base: string, looked = 0;
   const dir = tmp();
+  const savedEnv = process.env.PHONEDESK_ENABLE_UPDATE_CHECK;
   beforeAll(async () => {
+    process.env.PHONEDESK_ENABLE_UPDATE_CHECK = "1";
     const { startServer } = await import("../src/server");
     const q = (id: string) => ({ id, name: id, windows: [], updatedAt: 1 });
     app = await startServer({
@@ -214,7 +223,11 @@ describe("GET /api/update", () => {
     } as any);
     base = `http://localhost:${app.port}`;
   });
-  afterAll(() => app?.stop());
+  afterAll(() => {
+    app?.stop();
+    if (savedEnv === undefined) delete process.env.PHONEDESK_ENABLE_UPDATE_CHECK;
+    else process.env.PHONEDESK_ENABLE_UPDATE_CHECK = savedEnv;
+  });
   test("shape; cached; switched off by theme.updateCheck=false (no lookup)", async () => {
     const j = (await (await fetch(base + "/api/update")).json()) as any;
     expect(j).toMatchObject({ latest: "99.0.0", available: true, enabled: true });
