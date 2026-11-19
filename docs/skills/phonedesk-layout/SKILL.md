@@ -33,5 +33,7 @@ Placing on an occupied cell pushes the tiles in the way to the nearest free spot
 
 - Widgets: clock, cpu, memory, uptime, load, network, nowplaying, quota, sessions, entity (Home Assistant).
 - Button actions: open, hotkey, type, shell, media, volume, set-volume (`{level: 0-100, device?: "output" | "mic"}`), mic (`{command: "mute" | "unmute" | "toggle"}`), page, sound, sound-stop, hass, macro.
+- On Windows a `shell` command runs as `cmd.exe /d /s /c "<command>"` exactly as typed (quoted paths work); one still running after 2 s (a GUI app, a server) is left running and the press counts as done.
+- A `sound` action must name a clip already in the library (`snd:<16 hex>`, see GET /api/sounds); Windows cannot play ogg clips (use mp3, m4a, wav or aac).
 - Hotkeys: `cmd` is the portable main modifier (Command on macOS, Ctrl on Windows); `win` is the real Windows key (Command on macOS). Keys: letters, digits, return, tab, space, escape, arrows, home/end/pageup/pagedown, f1-f24, num0-num9, numadd/numsubtract/nummultiply/numdivide/numdecimal/numenter, insert, printscreen, pause, capslock, scrolllock, numlock, mediastop. Win+L cannot be sent: lock with the shell command `rundll32.exe user32.dll,LockWorkStation`.
 - Theme fields: mode, accent, background, tile, radius, gap, fontScale, tileStyle (tint, solid, outline, ios), iconScale, iconStroke, showLabels, text, orientation.
