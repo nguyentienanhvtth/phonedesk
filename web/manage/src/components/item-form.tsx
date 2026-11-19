@@ -16,6 +16,7 @@ import { QuotaOptionsForm } from "@/components/quota-options";
 import { MetricOptionsForm } from "@/components/metric-options";
 import { HotkeyField } from "@/components/hotkey-field";
 import { MacroEditor } from "@/components/macro-editor";
+import { AppVolumeFields, OutputDeviceFields } from "@/components/gaming-fields";
 import { IconPicker } from "@/components/icon-picker";
 import {
   ACTION_ICON, ACTION_SHORT, MEDIA_LABEL, MIC_LABEL, PROVIDER_LABEL, VOLUME_LABEL, WIDGET_LABEL, defaultAction,
@@ -204,7 +205,16 @@ function ActionFields({ action, pages, onChange, onPickApp }: { action: Action |
           </Field>
         </>
       )}
-      {a?.type === "hotkey" && <HotkeyField value={a.keys} onChange={(keys) => patch({ keys })} />}
+      {a?.type === "hotkey" && (
+        <>
+          <HotkeyField value={a.keys} onChange={(keys) => onChange({ ...a, keys })} />
+          <div className="flex items-center justify-between gap-3">
+            <label htmlFor="f-hold" className="text-[13px] font-medium">{t("Hold to press")} <span className="font-normal text-muted-foreground">{t("(push-to-talk)")}</span></label>
+            <Switch id="f-hold" checked={!!a.hold} onCheckedChange={(v) => onChange(v ? { ...a, hold: true } : { type: "hotkey", keys: a.keys })} aria-label={t("Hold to press")} />
+          </div>
+          {a.hold && <span className="text-xs text-muted-foreground">{t("The keys stay down while your finger is on the button and come up when you lift it. They are released anyway if the phone locks, disconnects or after 2 minutes.")}</span>}
+        </>
+      )}
       {a?.type === "type" && (
         <Field label={t("Text to type")} id="f-text" hint={t("Typed into the field currently focused on the computer.")}>
           <Input id="f-text" value={a.text} placeholder={t("Text to type")} onChange={(e) => patch({ text: e.target.value })} />
@@ -263,6 +273,8 @@ function ActionFields({ action, pages, onChange, onPickApp }: { action: Action |
           <span className="text-xs text-muted-foreground">{t(MIC_LABEL[a.command])}. {t("The default microphone of the computer; the button turns red on the phone while it is muted.")}</span>
         </Field>
       )}
+      {a?.type === "app-volume" && <AppVolumeFields action={a} onChange={(next) => onChange(next)} />}
+      {a?.type === "output-device" && <OutputDeviceFields action={a} onChange={(next) => onChange(next)} />}
       {a?.type === "sound" && <SoundFields action={a} onChange={(next) => onChange(next)} />}
       {a?.type === "sound-stop" && <p className="text-xs text-muted-foreground">{t("Press this button to stop all playing sounds (on the computer and the phone).")}</p>}
       {a?.type === "macro" && <MacroEditor steps={a.steps} pages={pages} onChange={(steps) => onChange({ type: "macro", steps })} />}

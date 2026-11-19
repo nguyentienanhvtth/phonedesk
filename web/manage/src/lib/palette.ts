@@ -56,6 +56,8 @@ export const STATIC_ENTRIES: PaletteEntry[] = [
   { key: "w-uptime", group: "widget", path: ["System"], label: "Uptime", icon: "clock", size: [2, 1], tags: "uptime", make: () => widget("uptime") },
   { key: "w-net", group: "widget", path: ["System"], label: "Network", icon: "wifi", size: [2, 1], tags: "network", make: () => widget("network") },
   { key: "w-load", group: "widget", path: ["System"], label: "System load", icon: "activity", size: [2, 1], tags: "load", make: () => widget("load") },
+  { key: "w-cputemp", group: "widget", path: ["System"], label: "CPU temperature", hint: "Windows: run LibreHardwareMonitor", icon: "cpu", size: [2, 1], tags: "cpu temperature temp heat sensor librehardwaremonitor", make: () => widget("cputemp") },
+  { key: "w-gpu", group: "widget", path: ["System"], label: "GPU", hint: "NVIDIA load, temperature, memory", icon: "gauge", size: [2, 1], tags: "gpu nvidia graphics vram temperature", make: () => widget("gpu") },
   { key: "w-np", group: "widget", path: ["Media"], label: "Now playing", icon: "music3", size: [4, 2], tags: "now playing music", make: () => widget("nowplaying") },
 
   quota("claude", "Claude", "#d97757"),
@@ -98,6 +100,9 @@ export const STATIC_ENTRIES: PaletteEntry[] = [
   { key: "w-clipboard", group: "keys", path: ["Windows"], label: "Clipboard history", hint: "Win+V", icon: "clipboard-paste", size: [1, 1], tags: "clipboard history win+v", make: () => button(t("Clipboard"), "clipboard-paste", { type: "hotkey", keys: "win+v" }) },
   { key: "w-taskmgr", group: "keys", path: ["Windows"], label: "Task Manager", hint: "Ctrl+Shift+Esc", icon: "activity", size: [1, 1], tags: "task manager processes ctrl+shift+esc", make: () => button(t("Task Manager"), "activity", { type: "hotkey", keys: "ctrl+shift+escape" }) },
   { key: "w-gamebar", group: "keys", path: ["Gaming"], label: "Xbox Game Bar", hint: "Win+G", icon: "device-gamepad-2", size: [1, 1], tags: "game bar xbox overlay win+g", make: () => button(t("Game Bar"), "device-gamepad-2", { type: "hotkey", keys: "win+g" }) },
+  { key: "w-ptt", group: "keys", path: ["Gaming"], label: "Push-to-talk (hold)", hint: "Hold to keep the key down", icon: "microphone", size: [1, 1], tags: "push to talk ptt hold discord voice key", make: () => button(t("Talk"), "microphone", { type: "hotkey", keys: "f13", hold: true }) },
+  { key: "w-appvol", group: "keys", path: ["Gaming"], label: "Game volume down", hint: "Per-app volume (Windows)", icon: "volume", size: [1, 1], tags: "app volume mixer per-app game discord spotify", make: () => button(t("Game vol −"), "volume", { type: "app-volume", app: "", command: "down", step: 10 }) },
+  { key: "w-outdev", group: "keys", path: ["Gaming"], label: "Switch speakers / headset", hint: "Windows audio device", icon: "headphones", size: [1, 1], tags: "output device headset speakers switch audio default", make: () => button(t("Audio out"), "headphones", { type: "output-device", devices: [] }) },
   { key: "w-record", group: "keys", path: ["Gaming"], label: "Clip the last 30 s", hint: "Win+Alt+G", icon: "video", size: [1, 1], tags: "record clip capture game bar win+alt+g", make: () => button(t("Clip 30s"), "video", { type: "hotkey", keys: "win+alt+g" }) },
 
   { key: "k-custom", group: "keys", path: ["Custom"], label: "Custom shortcut", icon: "keyboard", size: [1, 1], tags: "hotkey", make: () => button(t("Shortcut"), "keyboard", { type: "hotkey", keys: "" }) },

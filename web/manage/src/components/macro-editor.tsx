@@ -10,6 +10,9 @@ import { EntityPicker } from "@/components/entity-picker";
 import { HotkeyField } from "@/components/hotkey-field";
 import { ItemRefPicker } from "@/components/item-ref-picker";
 import { useHassServices } from "@/lib/hass";
+import { useSounds } from "@/lib/sounds";
+import { SegmentedControl } from "@/components/ui/knowns/segmented-control";
+import { Slider } from "@/components/ui/knowns/slider";
 import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { MACRO_MAX_STEPS, MACRO_MAX_WAIT_MS, type MacroStep, type Page } from "@/types";
@@ -26,6 +29,8 @@ const KINDS: { kind: Kind; label: string; hint: string }[] = [
   { kind: "hass", label: "Home Assistant", hint: "Call a Home Assistant service" },
   { kind: "item", label: "Press another button", hint: "Run the action of an existing button" },
   { kind: "notify", label: "Notification", hint: "Show a notification on the phone" },
+  { kind: "sound", label: "Play sound", hint: "Play a clip from the Sounds tab" },
+  { kind: "page", label: "Switch screen", hint: "Show another screen on the phone" },
 ];
 const LABEL = Object.fromEntries(KINDS.map((k) => [k.kind, k.label])) as Record<Kind, string>;
 
@@ -41,11 +46,13 @@ export function newStep(kind: Kind, pages: Page[] = []): MacroStep {
     case "hass": return { kind, service: "" };
     case "item": return { kind, pageId: pages[0]?.id ?? "", itemId: "" };
     case "notify": return { kind, text: "" };
+    case "sound": return { kind, sound: "", on: "mac", volume: 100 };
+    case "page": return { kind, pageId: pages[0]?.id ?? "" };
   }
 }
 
 /** Problems with a step list, in the UI language; the agent enforces the same limits. */
-export function macroProblems(steps: MacroStep[]): { general: string[]; byStep: Record<number, string> } {
+export function macroProblems(steps: MacroStep[], pages?: Page[]): { general: string[]; byStep: Record<number, string> } {
   const general: string[] = [];
   const byStep: Record<number, string> = {};
   if (steps.length === 0) general.push(t("Macro needs at least one step."));
@@ -61,6 +68,8 @@ export function macroProblems(steps: MacroStep[]): { general: string[]; byStep: 
     else if (s.kind === "hass" && !/^[a-z_]+\.[a-z0-9_]+$/.test(s.service)) byStep[i] = t("Service must look like domain.service.");
     else if (s.kind === "item" && (!s.pageId || !s.itemId)) byStep[i] = t("No button selected.");
     else if (s.kind === "notify" && !s.text.trim()) byStep[i] = t("No notification text entered.");
+    else if (s.kind === "sound" && !/^snd:[0-9a-f]{16}$/.test(s.sound)) byStep[i] = t("No sound clip selected.");
+    else if (s.kind === "page" && (!s.pageId || (pages && !pages.some((p) => p.id === s.pageId)))) byStep[i] = t("This screen no longer exists");
   });
   return { general, byStep };
 }
@@ -71,7 +80,7 @@ export function MacroEditor({ steps, pages, onChange }: { steps: MacroStep[]; pa
   const [from, setFrom] = useState<number | null>(null);
   const [over, setOver] = useState<number | null>(null);
   const grip = useRef(false);
-  const { general, byStep } = macroProblems(steps);
+  const { general, byStep } = macroProblems(steps, pages);
   const set = (i: number, s: MacroStep) => onChange(steps.map((x, j) => (j === i ? s : x)));
   const move = (i: number, j: number) => {
     if (j < 0 || j >= steps.length || i === j) return;
@@ -162,6 +171,29 @@ function StepFields({ i, step: s, pages, onChange }: { i: number; step: MacroSte
       </>
     );
     case "item": return <ItemRefPicker pages={pages} pageId={s.pageId} itemId={s.itemId} idPrefix={`ms-${i}`} onChange={(pageId, itemId) => onChange({ ...s, pageId, itemId })} />;
+    case "sound": return <SoundStep step={s} onChange={onChange} />;
+    case "page": return (
+      <Select size="sm" aria-label={t("Go to screen")} value={s.pageId} onChange={(e) => onChange({ ...s, pageId: e.target.value })}
+        options={[...pages.map((p) => ({ value: p.id, label: `${p.name || p.id} (${p.id})` })), ...(pages.some((p) => p.id === s.pageId) ? [] : [{ value: s.pageId, label: t("{id} (does not exist)", { id: s.pageId || "…" }) }])]} />
+    );
     case "notify": return <Input size="sm" aria-label={t("Notification text")} value={s.text} maxLength={200} placeholder={t("Notification text")} onChange={(e) => onChange({ ...s, text: e.target.value })} />;
   }
+}
+
+function SoundStep({ step: s, onChange }: { step: Extract<MacroStep, { kind: "sound" }>; onChange: (s: MacroStep) => void }) {
+  const { sounds } = useSounds();
+  const known = !s.sound || (sounds ?? []).some((x) => x.id === s.sound);
+  return (
+    <>
+      <Select size="sm" aria-label={t("Sound clip")} value={s.sound} onChange={(e) => onChange({ ...s, sound: e.target.value })}
+        options={[
+          { value: "", label: sounds ? t("Choose a clip...") : t("Loading...") },
+          ...(sounds ?? []).map((x) => ({ value: x.id, label: x.name })),
+          ...(sounds && !known ? [{ value: s.sound, label: t("{id} (does not exist)", { id: s.sound }) }] : []),
+        ]} />
+      <SegmentedControl size="sm" aria-label={t("Play on")} value={s.on ?? "mac"} onValueChange={(v) => onChange({ ...s, on: v as "mac" | "phone" | "both" })}
+        options={[{ value: "mac", label: t("Computer") }, { value: "phone", label: t("Phone") }, { value: "both", label: t("Both") }]} />
+      <Slider label={t("Volume")} aria-label={t("Clip volume")} min={0} max={100} step={5} value={s.volume ?? 100} onValueChange={(v) => onChange({ ...s, volume: v })} formatValue={(v) => `${v}%`} />
+    </>
+  );
 }

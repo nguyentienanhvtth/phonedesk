@@ -1,6 +1,6 @@
 import { randomId } from "@/lib/layout";
 import { t } from "@/lib/i18n";
-import type { Layout, Page, Rule, RuleThen, RuleWhen } from "@/types";
+import { APP_NAME_RE, type Layout, type Page, type Rule, type RuleThen, type RuleWhen } from "@/types";
 
 export const WHEN_LABEL: Record<RuleWhen["kind"], string> = {
   "ai-waiting": "AI needs you",
@@ -12,6 +12,8 @@ export const WHEN_LABEL: Record<RuleWhen["kind"], string> = {
   push: "A pushed value arrives (webhook)",
   "hass-state": "Home Assistant device changes state",
   idle: "Nobody is using it",
+  "app-running": "A program is running",
+  "app-foreground": "A program is in front",
 };
 export const THEN_LABEL: Record<RuleThen["kind"], string> = {
   "goto-page": "Go to screen",
@@ -34,6 +36,8 @@ export function newWhen(kind: RuleWhen["kind"]): RuleWhen {
     case "push": return { kind, key: "", op: ">", value: 0 };
     case "hass-state": return { kind, entityId: "", state: "on" };
     case "idle": return { kind, minutes: 10 };
+    case "app-running": return { kind, app: "" };
+    case "app-foreground": return { kind, app: "" };
   }
 }
 export function newThen(kind: RuleThen["kind"], pages: Page[]): RuleThen {
@@ -56,6 +60,8 @@ export function whenSummary(w: RuleWhen): string {
     case "push": return t("Value “{key}” {op} {value}", { key: w.key || "…", op: w.op ?? "=", value: w.value ?? "…" });
     case "hass-state": return `${w.entityId || "…"} = ${w.state}`;
     case "idle": return t("Idle for {n} minutes", { n: w.minutes });
+    case "app-running": return t("{app} is running", { app: w.app || "…" });
+    case "app-foreground": return t("{app} is in front", { app: w.app || "…" });
   }
 }
 export function thenSummary(th: RuleThen, pages: Page[]): string {
@@ -78,6 +84,7 @@ export const RULE_TEMPLATES: RuleTemplate[] = [
   { key: "quota", label: "Claude quota > 80% → alert", make: () => ({ name: t("Claude quota running out"), enabled: true, when: { kind: "quota-above", provider: "claude", percent: 80 }, then: [{ kind: "notify", text: t("Claude quota is over 80% used"), level: "warn" }] }) },
   { key: "night", label: "Night 22:00-06:00 → dark theme", make: () => ({ name: t("Dark theme at night"), enabled: true, when: { kind: "time-between", from: "22:00", to: "06:00" }, then: [{ kind: "theme-mode", mode: "dark" }] }) },
   { key: "kitchen", label: "Someone in the kitchen → Home page", make: (p) => ({ name: t("Someone in the kitchen"), enabled: true, when: { kind: "hass-state", entityId: "binary_sensor.kitchen_motion", state: "on" }, then: [{ kind: "goto-page", pageId: pick(p, "home", "nha"), countdown: 3 }], revert: true }) },
+  { key: "game", label: "Game running → Gaming screen", make: (p) => ({ name: t("Gaming screen while the game runs"), enabled: true, when: { kind: "app-running", app: "cs2.exe" }, then: [{ kind: "goto-page", pageId: pick(p, "gaming", "game"), countdown: 0 }], revert: true }) },
   { key: "idle", label: "Idle 10 minutes → back to Overview", make: (p) => ({ name: t("Back to Overview when idle"), enabled: true, when: { kind: "idle", minutes: 10 }, then: [{ kind: "goto-page", pageId: pick(p, "overview"), countdown: 0 }] }) },
 ];
 
@@ -94,6 +101,7 @@ export function ruleProblems(r: Rule, pages: Page[]): string[] {
   if (w.kind === "push" && !/^[a-z0-9][a-z0-9_.-]{0,47}$/.test(w.key)) out.push(t("Pushed value key is invalid."));
   if (w.kind === "hass-state" && !/^[a-z_]+\.[a-z0-9_]+$/.test(w.entityId)) out.push(t("No Home Assistant entity selected."));
   if (w.kind === "time-between" && !(/^([01]\d|2[0-3]):[0-5]\d$/.test(w.from) && /^([01]\d|2[0-3]):[0-5]\d$/.test(w.to))) out.push(t("Time must be in HH:MM format."));
+  if ((w.kind === "app-running" || w.kind === "app-foreground") && !APP_NAME_RE.test(w.app.trim())) out.push(t("Type the program's process name (e.g. cs2.exe)."));
   if (r.then.length < 1 || r.then.length > 5) out.push(t("Needs 1 to 5 actions in the “Then” section."));
   r.then.forEach((th, i) => {
     if ((th.kind === "goto-page" || th.kind === "run-item") && !pid.has(th.pageId)) out.push(t("Action {n}: screen does not exist.", { n: i + 1 }));

@@ -2,6 +2,8 @@ import { t } from "./lib/i18n";
 import { asPlatform, type Platform } from "./lib/platform";
 import { AI_PROVIDERS, type IconCatalog, type MacApp, type Sound, type HassConfig, type HassEntity, type HassService, type GeoPlace, type WebhookInfo, type AiProvider, type DeviceInfo, type About, type UpdateInfo, type DoctorItem, type DoctorStatus, type Integration, type Layout, type Pairing } from "./types";
 
+import { normalizeAudioDevices, normalizeAudioSessions, normalizeRunningApps } from "./lib/gaming";
+
 export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -199,6 +201,9 @@ export const api = {
   },
   renameSound: (id: string, name: string) => request<unknown>(`/api/sounds/${id.replace(/^snd:/, "")}`, json("PATCH", { name })),
   deleteSound: (id: string) => request<unknown>(`/api/sounds/${id.replace(/^snd:/, "")}`, { method: "DELETE" }),
+  getRunningApps: async () => normalizeRunningApps(await request<unknown>("/api/apps/running")),
+  getAudioSessions: async () => normalizeAudioSessions(await request<unknown>("/api/audio/sessions")),
+  getAudioDevices: async (flow: "output" | "input" = "output") => normalizeAudioDevices(await request<unknown>(`/api/audio/devices?flow=${flow}`)),
   getHass: () => request<HassConfig>("/api/hass/config"),
   putHassUrl: (url: string) => request<HassConfig>("/api/hass/config", json("PUT", { url })),
   /** The token is only ever sent, never read back. */
