@@ -278,7 +278,7 @@ export default function App() {
         <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" width={36} height={36} className="size-9 flex-none" />
         <div className="mr-auto">
           <h1 className="text-lg font-semibold leading-tight">PhoneDesk <span className="font-normal text-muted-foreground">· {t("Manage your control screen")}</span></h1>
-          <p className="flex items-center gap-2 text-xs text-muted-foreground">{t("Only reachable from this Mac")}{about && (() => {
+          <p className="flex items-center gap-2 text-xs text-muted-foreground">{t(platform === "win32" ? "Only reachable from this PC" : platform === "darwin" ? "Only reachable from this Mac" : "Only reachable from this computer")}{about && (() => {
             const text = `v${about.version}${about.commit ? ` · ${about.commit}` : ""}${about.dirty ? "*" : ""}`;
             const cls = "rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] transition-colors hover:bg-muted/70 hover:text-foreground";
             return about.commit && !about.dirty
