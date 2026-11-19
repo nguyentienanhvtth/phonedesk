@@ -4,7 +4,7 @@ import { chmod, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { HOME } from "./config";
 import { ASK_EVENT, ASK_MARKER, HOOK_EVENT, HOOK_MARKER, hookConfigPath, uninstallAskHook, uninstallHook, type HookTool } from "./hooks-install";
 import { copyFile } from "node:fs/promises";
-import { platform } from "./platform";
+import { osId, platform } from "./platform";
 import { runCode } from "./platform/exec";
 import { winInstall, winRestart, winStatus, winUninstall, type WinServiceCtx } from "./platform/win32/service";
 
@@ -194,13 +194,18 @@ export function formatStatus(s: ServiceStatus): string {
 
 const shq = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 /** `'<exe>'` for the compiled binary, `'<bun>' '<index.ts>'` from source (same convention as hookCommand). */
-const programWords = (program: string[]) => program.map((p) => shq(platform.hookPath(p))).join(" ");
+const programWords = (program: string[], ps = false) =>
+  (ps ? "& " : "") + program.map((p) => (ps ? `'${platform.hookPath(p).replace(/'/g, "''")}'` : shq(platform.hookPath(p)))).join(" ");
 
-/** Swaps the program part of one of our hook commands: `<old program> hook <tool>[args] # marker` keeps everything after `hook`. */
-export function repointCommand(command: string, program: string[]): string | null {
+/**
+ * Swaps the program part of one of our hook commands: `<old program> hook <tool>[args] # marker` keeps everything after `hook`.
+ * Codex on Windows runs hooks in PowerShell, so its command keeps (or gets) the `& '<program>'` form hookCommand writes there.
+ */
+export function repointCommand(command: string, program: string[], os: string = osId()): string | null {
   const m = /^(.*?) hook (claude-ask|claude|codex)(.*)$/s.exec(command);
   if (!m) return null;
-  const next = `${programWords(program)} hook ${m[2]}${m[3]}`;
+  const ps = m[1]!.startsWith("& ") || (m[2] === "codex" && os === "win32");
+  const next = `${programWords(program, ps)} hook ${m[2]}${m[3]}`;
   return next === command ? null : next;
 }
 
