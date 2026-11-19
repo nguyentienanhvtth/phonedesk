@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 import { escapePowerShell } from "../actions";
 import { runCapture } from "./exec";
 import { WinHelper } from "./win32/helper";
-import { idleSeconds as realIdle, realCredApi, sendInput, vkScan, type CredApi } from "./win32/ffi";
-import { hotkeyEvents, mediaEvents, typeEvents, volumeKeyEvents, type KeyEvent, type VkScan } from "./win32/keys";
+import { idleSeconds as realIdle, realCredApi, sendInput, vkScan, vkToScan, type CredApi } from "./win32/ffi";
+import { hotkeyEvents, mediaEvents, typeEvents, volumeKeyEvents, type KeyEvent, type VkScan, type VkToScan } from "./win32/keys";
 import type { AppCatalog, MicChange, MicState, Platform, SecretStore } from "./types";
 import type { AppInfo } from "../icons";
 import type { MediaApp, RawMedia } from "../media";
@@ -65,6 +65,7 @@ export interface Win32Deps {
   send?: (events: KeyEvent[]) => void;
   typeDelayMs?: number;
   scan?: VkScan;
+  toScan?: VkToScan;
   cred?: CredApi;
   idle?: () => number | null;
   run?: (argv: string[]) => Promise<string>;
@@ -87,6 +88,8 @@ export function createWin32(d: Win32Deps = {}): Platform {
     }
   };
   const scan = d.scan ?? vkScan;
+  // a fake `send` (tests) gets the static US scan table, never the real Win32 lookup
+  const toScan = d.toScan ?? (d.send ? undefined : vkToScan);
   const run = d.run ?? ((argv: string[]) => runCapture(argv, 10_000));
   const ids = new Map<string, string>(); // win-<hash> -> AppID
 
@@ -178,10 +181,10 @@ export function createWin32(d: Win32Deps = {}): Platform {
           await openTarget(target);
           return;
         }
-        case "hotkey": send(hotkeyEvents(a.keys, scan)); return;
+        case "hotkey": send(hotkeyEvents(a.keys, scan, toScan)); return;
         case "type": await sendPaced(typeEvents(a.text)); return;
-        case "media": send(mediaEvents(a.command)); return;
-        case "volume": send(volumeKeyEvents(a.command)); return;
+        case "media": send(mediaEvents(a.command, toScan)); return;
+        case "volume": send(volumeKeyEvents(a.command, undefined, toScan)); return;
         default: throw new Error(`${a.type} actions are not run as OS commands`);
       }
     },
