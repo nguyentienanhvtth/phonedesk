@@ -32,3 +32,17 @@ describe("layout templates: one source of truth", () => {
     expect(sharedGamingPc().pages[0]!.items.length).toBeGreaterThan(0);
   });
 });
+
+describe("offer to re-apply a changed built-in template", () => {
+  const { staleTemplate } = require("../web/manage/src/components/layout-presets");
+  const gaming = MANAGE.find((p) => p.id === "gaming-pc")!;
+  test("a layout made from an older Gaming PC (same screens, different tiles) is offered the new one", () => {
+    const old = structuredClone(gaming.layout);
+    old.pages[0]!.items = old.pages[0]!.items.filter((i: any) => i.widget !== "volume" && i.widget !== "mic");
+    expect(staleTemplate(old, MANAGE)?.id).toBe("gaming-pc");
+  });
+  test("the current template, or an unrelated layout, is not", () => {
+    expect(staleTemplate(structuredClone(gaming.layout), MANAGE)).toBeNull();
+    expect(staleTemplate({ version: 1, pages: [{ id: "main", name: "Main", columns: 4, rows: 2, items: [] }] }, MANAGE)).toBeNull();
+  });
+});
