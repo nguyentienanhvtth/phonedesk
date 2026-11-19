@@ -8,6 +8,7 @@ import { DeckClient, savedDeviceName, type ClientState } from './client'
 import { setTempUnit } from './temp'
 import { shade, applyTheme, readableOn, tint } from './theme'
 import { PROVIDER_COLOR } from './ai'
+import { isIOSSafari } from './platform'
 import { PermissionSheet, ProcessSheet, QuestionSheet } from './sheets'
 import type { QuestionRequest, WeatherData, PushedValue, Notice, GotoReq, HassEntity, HassState, IconAssets, AiData, Item, Layout, Media, MediaCommand, Orientation, Page, Stats, TileStyle } from './types'
 
@@ -421,6 +422,7 @@ function Tile(props: {
   assets?: IconAssets
   onMedia: (c: MediaCommand, app?: string) => Promise<unknown> | void
   onVolume: (v: { level: number } | { muted: boolean }) => Promise<unknown> | void
+  onMic?: (v: { level: number } | { muted: boolean }) => Promise<unknown> | void
   sound?: { at: number; durMs?: number }
   hassEnt?: HassEntity
   hassForceOn?: boolean
@@ -578,6 +580,7 @@ function Tile(props: {
           preview={props.preview}
           onMedia={props.onMedia}
           onVolume={props.onVolume}
+          onMic={props.onMic}
         />
         {handle}
       </div>
@@ -750,6 +753,7 @@ function PairForm(props: { client: DeckClient; notice: string; pin?: string }) {
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const [scanning, setScanning] = useState(false)
+  const showA2HS = isIOSSafari()
   const doPair = (code: string) => {
     if (code.length < 6) {
       setErr(t('The PIN has 6 digits.'))
@@ -815,6 +819,18 @@ function PairForm(props: { client: DeckClient; notice: string; pin?: string }) {
           {msg}
         </p>
         <p class="pd-hint">{t('Open the Manage page on your computer, Devices tab, to see the PIN / QR code')}</p>
+        {showA2HS ? (
+          <div class="pd-a2hs">
+            <Icon name="device-mobile-plus" size={18} />
+            <span>
+              <b>{t('Add to Home Screen for the best experience')}</b>
+              <br />
+              {t('Tap {0} then "Add to Home Screen"', '⬆').split('⬆').map((part, i) =>
+                i === 0 ? <span key={i}>{part}<Icon name="share" size={16} style={{ verticalAlign: '-3px', margin: '0 2px' }} /></span> : part
+              )}
+            </span>
+          </div>
+        ) : null}
       </form>
     </div>
   )
@@ -911,6 +927,12 @@ export function Deck(props: DeckProps) {
   const onVolume = (v: { level: number } | { muted: boolean }) => {
     if (preview) return
     return client.volume(v).then((r) => {
+      if (!r.ok) showToast(r.error || t('Action failed'))
+    })
+  }
+  const onMic = (v: { level: number } | { muted: boolean }) => {
+    if (preview) return
+    return client.mic(v).then((r) => {
       if (!r.ok) showToast(r.error || t('Action failed'))
     })
   }
@@ -1216,7 +1238,7 @@ export function Deck(props: DeckProps) {
   useEffect(() => {
     const s = stripRef.current
     if (!s) return
-    const on = () => { touching.current = true; window.clearTimeout(pendScroll.current); if (startIdx.current < 0 || !settleT.current) startIdx.current = idxRef.current }
+    const on = () => { touching.current = true; window.clearTimeout(pendScroll.current); window.clearTimeout(settleT.current); startIdx.current = idxRef.current }
     const off = () => { touching.current = false }
     s.addEventListener('touchstart', on, { passive: true })
     s.addEventListener('touchend', off, { passive: true })
@@ -1290,8 +1312,7 @@ export function Deck(props: DeckProps) {
       let i = startI
       if (dx < -40 || (dx < -15 && v < -0.4)) i = Math.min(pagesRef.current.length - 1, i + 1)
       else if (dx > 40 || (dx > 15 && v > 0.4)) i = Math.max(0, i - 1)
-      if (i !== idxRef.current) goTo(i, true)
-      else s.scrollLeft = i * w
+      goTo(i, true)
     }
     const click = (e: Event) => {
       if (Date.now() - swiped.current < 350) { e.stopPropagation(); e.preventDefault() }
@@ -1813,6 +1834,7 @@ export function Deck(props: DeckProps) {
                             last={st.lastMedia}
                             onMedia={onMedia}
                             onVolume={onVolume}
+                            onMic={onMic}
                             hassEnt={it.entity && hass ? hass.entities[it.entity.id] : undefined}
                             hassForceOn={it.entity && opt[it.entity.id] ? opt[it.entity.id].on : undefined}
                             hassConnected={hass ? hass.connected : true}

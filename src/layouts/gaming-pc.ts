@@ -7,21 +7,22 @@ export function gamingPcLayout(): Layout {
     pages: [
       {
         id: "gaming",
-        name: "Gaming",
+        name: "Controls",
         columns: 8,
         rows: 3,
         items: [
-          { id: "b-cs2", kind: "button", label: "CS2", icon: "device-gamepad-2", color: "#f97316", x: 0, y: 0, action: { type: "open", target: "steam://rungameid/730" } },
-          { id: "b-steam", kind: "button", label: "Steam", icon: "brand-steam", color: "#1b2838", x: 1, y: 0, action: { type: "open", target: "steam:" } },
-          { id: "b-discord", kind: "button", label: "Discord", icon: "brand-discord", color: "#5865f2", x: 2, y: 0, action: { type: "open", target: "Discord" } },
-          { id: "b-spotify", kind: "button", label: "Spotify", icon: "brand-spotify", color: "#1db954", x: 3, y: 0, action: { type: "open", target: "spotify:" } },
+          // Row 0: Volume/mic sliders + now playing
+          { id: "w-volume", kind: "widget", widget: "volume", x: 0, y: 0, w: 2 },
+          { id: "w-mic", kind: "widget", widget: "mic", x: 2, y: 0, w: 2 },
           { id: "w-media", kind: "widget", widget: "nowplaying", x: 4, y: 0, w: 4, h: 2 },
-          { id: "b-voldown", kind: "button", label: "Vol -", icon: "volume-2", x: 0, y: 1, action: { type: "volume", command: "down" } },
-          { id: "b-volup", kind: "button", label: "Vol +", icon: "volume", x: 1, y: 1, action: { type: "volume", command: "up" } },
-          { id: "b-mute", kind: "button", label: "Mute", icon: "volume-3", color: "#ef4444", x: 2, y: 1, action: { type: "volume", command: "mute" } },
-          { id: "b-micmute", kind: "button", label: "Mic Mute", icon: "microphone-off", color: "#dc2626", x: 3, y: 1, action: { type: "hotkey", keys: "ctrl+shift+m" } },
-          { id: "w-gpu", kind: "widget", widget: "gpu", color: "#22c55e", x: 0, y: 2, w: 2 },
-          { id: "w-cpu", kind: "widget", widget: "cpu", color: "#3b82f6", x: 2, y: 2, w: 2 },
+          // Row 1: Stats widgets
+          { id: "w-gpu", kind: "widget", widget: "gpu", color: "#22c55e", x: 0, y: 1, w: 2 },
+          { id: "w-cpu", kind: "widget", widget: "cpu", color: "#3b82f6", x: 2, y: 1, w: 2 },
+          // Row 2: App launchers + navigation
+          { id: "b-cs2", kind: "button", label: "CS2", icon: "device-gamepad-2", color: "#f97316", x: 0, y: 2, action: { type: "open", target: "steam://rungameid/730" } },
+          { id: "b-steam", kind: "button", label: "Steam", icon: "brand-steam", color: "#1b2838", x: 1, y: 2, action: { type: "open", target: "steam:" } },
+          { id: "b-discord", kind: "button", label: "Discord", icon: "brand-discord", color: "#5865f2", x: 2, y: 2, action: { type: "open", target: "Discord" } },
+          { id: "b-spotify", kind: "button", label: "Spotify", icon: "brand-spotify", color: "#1db954", x: 3, y: 2, action: { type: "open", target: "spotify:" } },
           { id: "w-mem", kind: "widget", widget: "memory", color: "#8b5cf6", x: 4, y: 2, w: 2 },
           { id: "b-stats", kind: "button", label: "Stats", icon: "chart-line", color: "#0ea5e9", x: 6, y: 2, action: { type: "page", page: "stats" } },
           { id: "b-keys", kind: "button", label: "Keys", icon: "keyboard", color: "#6366f1", x: 7, y: 2, action: { type: "page", page: "keys" } },

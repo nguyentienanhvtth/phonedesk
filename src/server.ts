@@ -28,6 +28,7 @@ import { CATALOG, DECK_BUILD } from "./assets.gen";
 import { NEAR_END_MS, NEAR_END_S, LastMediaStore, MediaTracker, openMediaApp as realOpenMediaApp, parseControl, resumeMedia as realResumeMedia, type MediaApp, type RawMedia } from "./media";
 import type { Stats } from "./stats";
 import type { VolumeChange, VolumeState } from "./actions";
+import type { MicChange, MicState } from "./platform";
 import { AiHub, QUOTA_SOURCE, realAiSources, type AiProviderId, type AiSources } from "./ai";
 import { agyPath } from "./ai/antigravity";
 import { ToolStates, type ToolState } from "./ai/states";
@@ -65,6 +66,10 @@ export interface Deps {
   setVolume: (v: VolumeChange) => Promise<void>;
   /** Fresh volume read, used to push the new value right after a change. */
   readVolume: () => Promise<VolumeState | null>;
+  /** Set microphone level/mute (Windows). */
+  setMic?: (v: MicChange) => Promise<void>;
+  /** Fresh mic read, used to push the new value right after a change. */
+  readMic?: () => Promise<MicState | null>;
   readMedia: () => Promise<RawMedia | null>;
   fetchArtwork: (raw: RawMedia) => Promise<string | undefined>;
   /** User-initiated: play, launching the last app if no player is running. */
@@ -148,11 +153,14 @@ export async function startServer(opts: StartOptions = {}) {
   // Real modules are loaded lazily so tests can inject fakes without them.
   const actions = opts.deps?.runAction && opts.deps.setVolume && opts.deps.readVolume ? undefined : await import("./actions");
   const media = opts.deps?.readMedia && opts.deps.fetchArtwork ? undefined : await import("./media");
+  const { platform } = await import("./platform");
   const deps: Deps = {
     runAction: opts.deps?.runAction ?? actions!.runAction,
     startStats: opts.deps?.startStats ?? (await import("./stats")).startStats,
     setVolume: opts.deps?.setVolume ?? actions!.setVolume,
     readVolume: opts.deps?.readVolume ?? actions!.readVolume,
+    setMic: opts.deps?.setMic ?? platform.setMic?.bind(platform),
+    readMic: opts.deps?.readMic ?? platform.readMic?.bind(platform),
     readMedia: opts.deps?.readMedia ?? media!.readMedia,
     fetchArtwork: opts.deps?.fetchArtwork ?? media!.fetchArtwork,
     resumeMedia: opts.deps?.resumeMedia ?? realResumeMedia,
@@ -480,9 +488,12 @@ export async function startServer(opts: StartOptions = {}) {
     setTimeout(async () => {
       if (stopped || sockets.size === 0) return;
       if (what === "media") return void pollMedia();
-      const volume = await deps.readVolume().catch(() => null);
+      const [volume, mic] = await Promise.all([
+        deps.readVolume().catch(() => null),
+        deps.readMic?.().catch(() => null) ?? Promise.resolve(null),
+      ]);
       if (lastStats && !stopped) {
-        lastStats = { ...lastStats, volume };
+        lastStats = { ...lastStats, volume, mic };
         broadcast({ type: "stats", stats: lastStats });
       }
     }, what === "media" ? 250 : 0);
@@ -1136,16 +1147,20 @@ export async function startServer(opts: StartOptions = {}) {
         try { msg = JSON.parse(String(raw)); } catch { return; }
         if (msg?.type === "ping") return send(ws, { type: "pong" });
         const reqId = msg?.reqId;
-        if (msg?.type === "media" || msg?.type === "volume") {
+        if (msg?.type === "media" || msg?.type === "volume" || msg?.type === "mic") {
           const c = parseControl(msg);
           if ("error" in c) return send(ws, { type: "result", reqId, ok: false, error: c.error });
           try {
             if (c.kind === "media" && c.command === "resume") await deps.resumeMedia(lastMedia.last?.app);
             else if (c.kind === "media" && c.command === "open") await deps.openMediaApp(c.app);
             else if (c.kind === "media") await deps.runAction({ type: "media", command: c.command });
-            else await deps.setVolume("level" in c ? { level: c.level } : { muted: c.muted });
+            else if (c.kind === "volume") await deps.setVolume("level" in c ? { level: c.level } : { muted: c.muted });
+            else if (c.kind === "mic") {
+              if (!deps.setMic) throw new Error("mic control not available");
+              await deps.setMic("level" in c ? { level: c.level } : { muted: c.muted });
+            }
             send(ws, { type: "result", reqId, ok: true });
-            refreshSoon(c.kind);
+            refreshSoon(c.kind === "mic" ? "volume" : c.kind);
           } catch (err: any) {
             send(ws, { type: "result", reqId, ok: false, error: err?.message ?? String(err) });
           }

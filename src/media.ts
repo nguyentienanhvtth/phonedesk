@@ -34,9 +34,11 @@ export type ControlMessage =
   | { kind: "media"; command: "resume" }
   | { kind: "media"; command: "open"; app: MediaApp }
   | { kind: "volume"; level: number }
-  | { kind: "volume"; muted: boolean };
+  | { kind: "volume"; muted: boolean }
+  | { kind: "mic"; level: number }
+  | { kind: "mic"; muted: boolean };
 
-/** Strict validation of client {type:"media"|"volume"} messages. Returns an error string for anything off. */
+/** Strict validation of client {type:"media"|"volume"|"mic"} messages. Returns an error string for anything off. */
 export function parseControl(msg: any): ControlMessage | { error: string } {
   if (msg?.type === "media") {
     if (msg.command === "playpause" || msg.command === "next" || msg.command === "previous" || msg.command === "resume") {
@@ -60,6 +62,20 @@ export function parseControl(msg: any): ControlMessage | { error: string } {
     }
     if (typeof msg.muted !== "boolean") return { error: "muted must be a boolean" };
     return { kind: "volume", muted: msg.muted };
+  }
+  if (msg?.type === "mic") {
+    const hasLevel = "level" in msg;
+    const hasMuted = "muted" in msg;
+    if (hasLevel === hasMuted) return { error: "mic needs exactly one of level or muted" };
+    if (hasLevel) {
+      const level = msg.level;
+      if (typeof level !== "number" || !Number.isInteger(level) || level < 0 || level > 100) {
+        return { error: "mic level must be an integer 0-100" };
+      }
+      return { kind: "mic", level };
+    }
+    if (typeof msg.muted !== "boolean") return { error: "muted must be a boolean" };
+    return { kind: "mic", muted: msg.muted };
   }
   return { error: "unknown control message" };
 }

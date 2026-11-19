@@ -1,6 +1,6 @@
 import { cpus, freemem, hostname, loadavg, totalmem, uptime } from "node:os";
 import { getVolumeCached, type VolumeState } from "./actions";
-import { platform } from "./platform";
+import { platform, type MicState } from "./platform";
 
 export interface Stats {
   cpu: number; // 0-100
@@ -14,6 +14,7 @@ export interface Stats {
   host: string; // computer name without ".local"
   net: { rx: number; tx: number }; // bytes/s over non-loopback interfaces
   volume: VolumeState | null; // output volume, null when unknown
+  mic?: MicState | null; // mic input level + mute, null when unavailable
 }
 
 export type NetCounters = Record<string, { rx: number; tx: number }>;

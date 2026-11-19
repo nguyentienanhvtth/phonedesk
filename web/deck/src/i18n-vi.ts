@@ -186,4 +186,12 @@ export const VI: { [en: string]: string } = {
   "Amber": "Hổ phách",
   "No usage data from Grok": "Grok không có dữ liệu mức dùng",
   "Question from": "Câu hỏi từ",
+  "Add to Home Screen for the best experience": "Thêm vào Màn hình chính để có trải nghiệm tốt nhất",
+  "Tap {0} then \"Add to Home Screen\"": "Chạm {0} rồi chọn \"Thêm vào MH chính\"",
+  "Volume": "Âm lượng",
+  "Microphone": "Micro",
+  "Mute": "Tắt tiếng",
+  "Unmute": "Bật tiếng",
+  "No volume data": "Không có dữ liệu âm lượng",
+  "No mic data": "Không có dữ liệu micro",
 }

@@ -46,6 +46,9 @@
   -webkit-touch-callout: none;
   touch-action: manipulation;
   -ms-touch-action: manipulation;
+  /* Prevent iOS rubber-banding and overscroll */
+  overscroll-behavior: none;
+  -webkit-overscroll-behavior: none;
 }
 .pd-root[data-pd-theme='light'] {
   --pd-bg: #f4f4f6;
@@ -236,6 +239,11 @@
   -webkit-scroll-snap-type: x mandatory;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
+  /* Prevent iOS rubber-banding and restrict to horizontal panning */
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: none;
+  touch-action: pan-x;
+  -ms-touch-action: pan-x;
 }
 .pd-pager::-webkit-scrollbar {
   display: none;
@@ -608,6 +616,35 @@
   font-size: 12px;
   line-height: 1.45;
   color: var(--pd-muted);
+}
+
+/* Add to Home Screen hint for iOS Safari */
+.pd-a2hs {
+  display: -webkit-flex;
+  display: flex;
+  align-items: flex-start;
+  margin-top: 14px;
+  padding: 12px;
+  background: rgba(34, 211, 238, 0.12);
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--pd-text);
+  text-align: left;
+}
+.pd-a2hs svg {
+  -webkit-flex: none;
+  flex: none;
+  margin-right: 10px;
+  margin-top: 2px;
+  color: var(--pd-accent);
+}
+.pd-a2hs b {
+  display: block;
+  margin-bottom: 2px;
+  font-weight: 600;
+  color: var(--pd-accent);
 }
 
 /* ---------- Toast ---------- */
@@ -3449,3 +3486,143 @@
 .pd-qrow__n { max-width: 48%; }
 .pd-qrow__bar { min-width: 0; } .pd-qrow__n { -webkit-flex: 0 1 auto; flex: 0 1 auto; }
 .pd-page { -webkit-scroll-snap-stop: always; scroll-snap-stop: always; }
+
+/* ---------- Slider widgets (volume, mic) ---------- */
+.pd-slider {
+  -webkit-flex: 1;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: -webkit-flex;
+  display: flex;
+  -webkit-flex-direction: column;
+  flex-direction: column;
+  justify-content: center;
+}
+.pd-slider--empty {
+  align-items: center;
+  justify-content: center;
+}
+.pd-slider__none {
+  font-size: 12px;
+  color: var(--pd-muted);
+}
+.pd-slider__row {
+  display: -webkit-flex;
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.pd-slider--compact .pd-slider__row {
+  margin-bottom: 6px;
+}
+.pd-slider__btn {
+  -webkit-flex: none;
+  flex: none;
+  display: -webkit-flex;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin-right: 8px;
+  border-radius: 50%;
+  color: var(--pd-text);
+  background: rgba(139, 139, 148, 0.16);
+}
+.pd-slider--compact .pd-slider__btn {
+  width: 32px;
+  height: 32px;
+  margin-right: 6px;
+}
+.pd-slider__btn:active {
+  background: rgba(139, 139, 148, 0.32);
+}
+.pd-slider__lb {
+  -webkit-flex: 1;
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pd-slider__v {
+  -webkit-flex: none;
+  flex: none;
+  min-width: 36px;
+  text-align: right;
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.pd-slider--compact .pd-slider__v {
+  font-size: 14px;
+  min-width: 32px;
+}
+.pd-slider__track {
+  position: relative;
+  -webkit-flex: none;
+  flex: none;
+  height: 44px;
+  display: -webkit-flex;
+  display: flex;
+  align-items: center;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+  -ms-touch-action: none;
+}
+.pd-slider--compact .pd-slider__track {
+  height: 36px;
+}
+.pd-slider__bg {
+  position: relative;
+  width: 100%;
+  height: 8px;
+  margin: 0 11px;
+  border-radius: 4px;
+  background: rgba(139, 139, 148, 0.28);
+  overflow: hidden;
+}
+.pd-slider--compact .pd-slider__bg {
+  height: 6px;
+  border-radius: 3px;
+}
+.pd-slider__fill {
+  height: 100%;
+  border-radius: 4px;
+  -webkit-transition: width 0.1s ease-out;
+  transition: width 0.1s ease-out;
+}
+.pd-slider__thumb {
+  position: absolute;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  margin-top: -11px;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+.pd-slider--compact .pd-slider__thumb {
+  width: 18px;
+  height: 18px;
+  margin-top: -9px;
+}
+.pd-slider--tiny {
+  -webkit-flex-direction: row;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+}
+.pd-slider--tiny .pd-slider__btn {
+  margin-right: 6px;
+  width: 28px;
+  height: 28px;
+}
+.pd-slider--tiny .pd-slider__v {
+  font-size: 13px;
+  min-width: auto;
+}

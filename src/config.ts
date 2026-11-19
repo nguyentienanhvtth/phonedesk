@@ -41,7 +41,8 @@ export type SoundMode = "overlap" | "restart" | "toggle";
 export const SOUND_ID_RE = /^snd:[a-f0-9]{16}$/;
 
 /** nowplaying = current track + transport + volume (agent sends {type:"media"}); network = rx/tx rates; gpu = NVIDIA GPU stats via nvidia-smi. */
-export type WidgetKind = "clock" | "cpu" | "memory" | "uptime" | "load" | "network" | "nowplaying" | "quota" | "sessions" | "entity" | "weather" | "value" | "notifications" | "gpu";
+/** volume = slider for system volume; mic = slider for mic input level (Windows). */
+export type WidgetKind = "clock" | "cpu" | "memory" | "uptime" | "load" | "network" | "nowplaying" | "quota" | "sessions" | "entity" | "weather" | "value" | "notifications" | "gpu" | "volume" | "mic";
 
 /** AI coding tools PhoneDesk reads quotas/sessions from. A "quota" widget shows one provider (item.provider). */
 export type AiProvider = "claude" | "codex" | "antigravity" | "opencode" | "grok";
@@ -197,7 +198,7 @@ const LAYOUT_FILE = join(HOME, "layout.json");
 const DEVICES_FILE = join(HOME, "devices.json");
 
 export const ACTION_TYPES = ["open", "hotkey", "type", "shell", "media", "volume", "page", "sound", "sound-stop", "hass", "macro"] as const;
-export const WIDGET_KINDS: WidgetKind[] = ["clock", "cpu", "memory", "uptime", "load", "network", "nowplaying", "quota", "sessions", "entity", "weather", "value", "notifications", "gpu"];
+export const WIDGET_KINDS: WidgetKind[] = ["clock", "cpu", "memory", "uptime", "load", "network", "nowplaying", "quota", "sessions", "entity", "weather", "value", "notifications", "gpu", "volume", "mic"];
 
 export function defaultLayout(): Layout {
   return {
